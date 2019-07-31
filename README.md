@@ -1,0 +1,2 @@
+# golib
+Miscellaneous Go libraries
