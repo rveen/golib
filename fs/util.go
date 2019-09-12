@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/russross/blackfriday"
+	// "github.com/russross/blackfriday"
+	"github.com/gomarkdown/markdown"
+	"github.com/gomarkdown/markdown/parser"
 	"github.com/rveen/ogdl"
 )
 
@@ -30,7 +32,14 @@ func (f *fileEntry) Prepare() {
 
 	} else if ext == ".md" {
 		// Process markdown
-		f.content = blackfriday.MarkdownCommon(f.content)
+		//f.content = blackfriday.MarkdownCommon(f.content)
+
+		// this in init() !!!
+		extensions := parser.CommonExtensions | parser.AutoHeadingIDs
+		p := parser.NewWithExtensions(extensions)
+
+		f.content = markdown.ToHTML(f.content, p, nil)
+
 		f.tree = ogdl.NewTemplate(string(f.content))
 		f.mime = "text/html"
 		f.typ = "m"
