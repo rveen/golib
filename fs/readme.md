@@ -1,11 +1,49 @@
 # fs, a file reader
 
-The fs API allow read-only access to a file system that can have, besides traditional files and directories, also versioned
-repositories as SVN. It's use is as a file viewer in the Gserver web server.
+This package implements a file system 'browser' for use in a web server. 
+By specifying paths in the file system, it returns directories, files and part of files
+(specific types of files) that correspond to that path. The particularity of this
+package is that it allows navigation into either conventional or versioned file
+systems (such as Subversion or Git), and into data files (only OGDL at the moment).
+Use of file extensions is optional (if the file name is unique).
 
-## Design
+For now this is a read-only implementation. The content of a path is returned if found,
+but the file system cannot be modified.
 
-## FileSystem
+When the path points to a directory that contains an index.* file
+it returnes this file along with the directory list. Presence of several
+index.* files is not supported except in special cases: index.nolist(= do not return
+directory list).
 
-## FileEntry
+## Main API
 
+The two main functions of this package are New and Get.
+
+    fs := fs.New("/dir")
+    fe := fs.Get("file")
+
+## Implementation details
+
+### FileSystem
+
+A file system is opened by giving a root location to New():
+
+    fs := fs.New("/dir")
+
+where fs is a FileSystem interface. Its root is per definition an ordinary directory.
+
+The two main functions that FileSystem implements are Dir() and File():
+
+    type FileSystem interface {
+        Root() string
+        Info(path, rev string) (os.FileInfo, error)
+        Dir(path, rev string) ([]os.FileInfo, error)
+        File(path, rev string) ([]byte, error)
+    }
+
+
+
+
+### FileEntry
+
+FileEntry is an interface that extends the standard os.FileInfo.
