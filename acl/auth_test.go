@@ -7,7 +7,7 @@ import (
 
 func TestAcl(t *testing.T) {
 
-	acl, _ := NewAcl("")
+	acl, _ := New("")
 	acl.AddRule("*", "*", "*", false)
 	acl.AddRule("fuelcell", "/prj/*", "*", true)
 	acl.AddRule("automotive", "/secret/*", "*", true)
@@ -26,7 +26,7 @@ func TestAcl(t *testing.T) {
 }
 
 func TestInGroup(t *testing.T) {
-	acl, _ := NewAcl("")
+	acl, _ := New("")
 
 	acl.AddGroup("rolf", "fuelcell")
 	acl.AddGroup("fuelcell", "automotive")
@@ -37,7 +37,7 @@ func TestInGroup(t *testing.T) {
 }
 
 func TestConfFile(t *testing.T) {
-	acl, err := NewAcl("test.conf")
+	acl, err := New("test.conf")
 
 	if err != nil {
 		println(err)

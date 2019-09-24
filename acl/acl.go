@@ -31,7 +31,7 @@ type Rule struct {
 	Prefix    bool
 }
 
-func NewAcl(filename string) (*Acl, error) {
+func New(filename string) (*Acl, error) {
 
 	if filename == "" {
 		return &Acl{}, nil
