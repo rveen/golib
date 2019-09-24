@@ -18,7 +18,9 @@ import (
 	"strings"
 )
 
-type Acl struct {
+// ACL contains rules and groups for implementing
+// an access control list
+type ACL struct {
 	rules  []Rule
 	groups map[string][]string
 }
@@ -31,10 +33,12 @@ type Rule struct {
 	Prefix    bool
 }
 
-func New(filename string) (*Acl, error) {
+// New creates a new Acl object, either from a configuration
+// file, or empty if an empty string is given as argument.
+func New(filename string) (*ACL, error) {
 
 	if filename == "" {
-		return &Acl{}, nil
+		return &ACL{}, nil
 	}
 
 	file, err := os.Open(filename)
@@ -44,7 +48,7 @@ func New(filename string) (*Acl, error) {
 	defer file.Close()
 
 	section := ""
-	acl := &Acl{}
+	acl := &ACL{}
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -97,7 +101,7 @@ func New(filename string) (*Acl, error) {
 	return acl, nil
 }
 
-func (acl *Acl) AddRule(sub, obj, op string, pol bool) {
+func (acl *ACL) AddRule(sub, obj, op string, pol bool) {
 	r := Rule{sub, obj, op, pol, false}
 
 	if strings.HasSuffix(obj, "*") {
@@ -110,7 +114,7 @@ func (acl *Acl) AddRule(sub, obj, op string, pol bool) {
 	acl.rules = append(acl.rules, r)
 }
 
-func (acl *Acl) AddGroup(sub, group string) {
+func (acl *ACL) AddGroup(sub, group string) {
 	g := acl.groups
 	if g == nil {
 		acl.groups = make(map[string][]string)
@@ -121,7 +125,9 @@ func (acl *Acl) AddGroup(sub, group string) {
 	println("addGroup", group, sub, len(acl.groups[sub]))
 }
 
-func (acl *Acl) Enforce(sub, obj, op string) bool {
+// Enforce check the ACL for a specific resource and user, and returns true
+// if access is granted.
+func (acl *ACL) Enforce(sub, obj, op string) bool {
 
 	result := true
 
@@ -160,7 +166,9 @@ func (acl *Acl) Enforce(sub, obj, op string) bool {
 	return result
 }
 
-func (acl *Acl) InGroup(sub, group string) bool {
+// InGroup checks whether the first argument is part of the group given
+// as second argument
+func (acl *ACL) InGroup(sub, group string) bool {
 	gg := acl.groups[sub]
 
 	if gg == nil {
