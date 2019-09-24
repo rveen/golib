@@ -8,7 +8,11 @@ There are two sections. The rules section has the format
 
     who resource operation allow/deny
     
-The groups section creates groups of people, or groups of groups.
+The groups section creates groups of people, or groups of groups:
+
+    group subgroup subgroup ...
+    
+Where subgroup can be a user.
 
     # A comment
     [rules]
@@ -17,5 +21,5 @@ The groups section creates groups of people, or groups of groups.
     purchasing /dept/purchasing *
 
     [groups]
-    john purchasing
-    alice purchasing
+    purchasing john alice bob
+    
