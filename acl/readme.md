@@ -1,5 +1,7 @@
 # Simple access control library
 
+See the [API documentation](https://godoc.org/github.com/rveen/golib/acl).
+
 ## Configuration file format
 
 There are two sections. The rules section has the format
