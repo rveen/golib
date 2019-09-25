@@ -84,7 +84,7 @@ func New(filename string) (*ACL, error) {
 			} else if section == "g" {
 				if len(tk) > 1 {
 					for i := 1; i < len(tk); i++ {
-						acl.AddGroup(tk[0], tk[i])
+						acl.AddGroup(tk[i], tk[0])
 					}
 				}
 			}
