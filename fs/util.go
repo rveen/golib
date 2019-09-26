@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	// "github.com/russross/blackfriday"
-	"github.com/gomarkdown/markdown"
-	"github.com/gomarkdown/markdown/parser"
+	"github.com/rveen/markdown"
+	"github.com/rveen/markdown/parser"
 	"github.com/rveen/ogdl"
 )
 
