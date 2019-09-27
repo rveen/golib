@@ -31,19 +31,24 @@ import (
 
 type fileSystem struct {
 	root string
+	typ  string
 }
 
 func New(root string) *fileSystem {
 	fs := &fileSystem{root: root}
 	fs.root, _ = filepath.Abs(root)
 
-	log.Println("fs.New", fs.root)
+	log.Println("svnfs.New", fs.root)
 
 	return fs
 }
 
 func (fs *fileSystem) Root() string {
 	return fs.root
+}
+
+func (fs *fileSystem) Type() string {
+	return "svn"
 }
 
 // svn propset -r N --revprop PROPNAME PROPVALUE URL
@@ -100,13 +105,13 @@ func Create(path, ref, user, group string) error {
 	return err
 }
 
-func (fs *fileSystem) Log(path string, rev int) (*ogdl.Graph, error) {
+func (fs *fileSystem) Log(path, rev string) (*ogdl.Graph, error) {
 
 	var err error
 	var b []byte
 
-	if rev > -1 {
-		b, err = exec.Command("svn", "log", "-r", strconv.Itoa(rev), "-v", "--xml", "file:///"+fs.root, path).Output()
+	if rev != "HEAD" {
+		b, err = exec.Command("svn", "log", "-r", rev, "-v", "--xml", "file:///"+fs.root, path).Output()
 	} else {
 		b, err = exec.Command("svn", "log", "-v", "--xml", "file:///"+fs.root, path).Output()
 	}
@@ -125,13 +130,50 @@ func (fs *fileSystem) File(path, rev string) ([]byte, error) {
 	var b []byte
 	var err error
 
-	if rev != "" {
+	if rev != "HEAD" {
 		b, err = exec.Command("svnlook", "-r", rev, "cat", fs.root, path).Output()
 	} else {
 		b, err = exec.Command("svnlook", "cat", fs.root, path).Output()
 	}
 
+	log.Println("svnfs.File()", path, rev, len(b))
+
 	return b, err
+}
+
+func (fs *fileSystem) Revisions(path, rev string) (*ogdl.Graph, error) {
+
+	if path[len(path)-1] == '@' {
+		path = path[:len(path)-1]
+	}
+	g, err := fs.Log(path, rev)
+	if err != nil {
+		return g, err
+	}
+
+	// Trace the path (it may have been moved)
+	// Get all the revision numbers from the previous log, issue an svn info
+	// and get the relative url
+
+	var b []byte
+
+	for _, n := range g.Node("log").Out {
+
+		rev, _ := n.GetString("'@'.revision")
+
+		b, err = exec.Command("svn", "info", "--xml", "-r", rev, "file:///"+fs.root+"/"+path).Output()
+		m := xml2graph(b)
+		rel := m.Get("info.entry.'relative-url'").String()
+		if rel[0] == '^' {
+			rel = rel[1:]
+		}
+		n.Set("urlRel", rel)
+		url := m.Get("info.entry.url").String()
+		n.Set("url", url)
+		n.Set("urlBase", url[7:len(url)-len(rel)])
+	}
+
+	return g, err
 }
 
 // Size returns the size in bytes of a file
@@ -142,7 +184,7 @@ func (fs *fileSystem) size(path, rev string) int64 {
 	var err error
 	var i int
 
-	if rev != "" {
+	if rev != "HEAD" {
 		b, err = exec.Command("svnlook", "-r", rev, "filesize", fs.root, path).Output()
 	} else {
 		b, err = exec.Command("svnlook", "filesize", fs.root, path).Output()
@@ -163,10 +205,6 @@ func (fs *fileSystem) size(path, rev string) int64 {
 func (fs *fileSystem) Info(path, rev string) (os.FileInfo, error) {
 
 	log.Println("svnfs.Info()", path)
-
-	if rev == "" {
-		rev = "HEAD"
-	}
 
 	b, err := exec.Command("svn", "info", "--xml", "-r", rev, "file:///"+fs.root+"/"+path).Output()
 
@@ -190,9 +228,7 @@ func (fs *fileSystem) Info(path, rev string) (os.FileInfo, error) {
 
 func (fs *fileSystem) Dir(path, rev string) ([]os.FileInfo, error) {
 
-	if rev == "" {
-		rev = "HEAD"
-	}
+	log.Println("svnfs.Dir()", path)
 
 	b, err := exec.Command("svn", "list", "--xml", "-r", rev, "file:///"+fs.root+"/"+path).Output()
 
@@ -280,4 +316,14 @@ func xml2graph(b []byte) *ogdl.Graph {
 	}
 
 	return g
+}
+
+func getRev(path string) (string, string) {
+
+	i := strings.LastIndex(path, "@")
+	if i == -1 {
+		return path, "HEAD"
+	}
+	return path[0:i], path[i+1:]
+
 }

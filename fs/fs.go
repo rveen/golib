@@ -1,10 +1,13 @@
 package fs
 
 import (
+	"errors"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/rveen/ogdl"
 )
 
 type FileSystem interface {
@@ -12,6 +15,9 @@ type FileSystem interface {
 	Info(path, rev string) (os.FileInfo, error)
 	Dir(path, rev string) ([]os.FileInfo, error)
 	File(path, rev string) ([]byte, error)
+	Revisions(path, rev string) (*ogdl.Graph, error)
+	// Return the type of underlying file system
+	Type() string
 }
 
 type fileSystem struct {
@@ -32,6 +38,14 @@ func New(root string) FileSystem {
 
 func (fs *fileSystem) Root() string {
 	return fs.root
+}
+
+func (fs *fileSystem) Type() string {
+	return ""
+}
+
+func (fs *fileSystem) Revisions(path, rev string) (*ogdl.Graph, error) {
+	return nil, errors.New("not versioned")
 }
 
 func (fs *fileSystem) Dir(path, rev string) ([]os.FileInfo, error) {

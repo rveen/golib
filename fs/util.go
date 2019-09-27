@@ -2,6 +2,7 @@ package fs
 
 import (
 	"golib/jupyter"
+	"log"
 	"mime"
 	"os"
 	"path/filepath"
@@ -88,6 +89,12 @@ func TypeByExtension(ext string) string {
 // Type examines the path and returns its type. Path should be an existing directory
 // or file in the file system.
 func Type(fs FileSystem, path, rev string) (string, error) {
+
+	log.Println("Type:", path)
+
+	if path[len(path)-1] == '@' {
+		return "revs", nil
+	}
 
 	f, err := fs.Info(path, rev)
 	if err != nil {

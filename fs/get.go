@@ -72,11 +72,11 @@ package fs
 
 import (
 	"errors"
-	"golib/fs/svn"
 	"log"
 	"path/filepath"
 	"strings"
 
+	"github.com/rveen/golib/fs/svn"
 	"github.com/rveen/ogdl"
 )
 
@@ -99,6 +99,10 @@ import (
 //
 func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 
+	if rev == "" {
+		rev = "HEAD"
+	}
+
 	// Prepare and clean path
 	path = filepath.Clean(path)
 	opath := path
@@ -116,7 +120,7 @@ func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 		path = "."
 	}
 
-	log.Println("fs.Get", opath, rev, len(parts))
+	log.Println("fs.Get", opath, len(parts))
 
 	for i := 0; i < len(parts); i++ {
 
@@ -167,11 +171,13 @@ func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 			goto tryAgain
 
 		case "dir":
-			// Check if there is a link
-			s := link(fs, path, rev)
-			if s != "" {
-				path = s
-				goto tryAgain
+			// Check if there is a link (only in ordinary fs)
+			if fs.Type() == "" {
+				s := link(fs, path, rev)
+				if s != "" {
+					path = s
+					goto tryAgain
+				}
 			}
 
 		case "git":
@@ -181,15 +187,25 @@ func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 		case "svn":
 			svnfs := svn.New(path)
 			dpath := ""
+			rev = "HEAD"
+
+			// Make up the path to the SVN repo
+			// If any revision number appears, extract it.
 			for i++; i < len(parts); i++ {
-				dpath += "/" + parts[i]
+				j := strings.IndexRune(parts[i], '@')
+				if j != -1 {
+					rev = parts[i][j+1:]
+					dpath += "/" + parts[i][0:j]
+				} else {
+					dpath += "/" + parts[i]
+				}
 			}
 
 			if dpath != "" {
 				dpath = dpath[1:]
 			}
 
-			log.Println("------ dpath", dpath)
+			log.Println("Get(svnfs, ", dpath, rev)
 			return Get(svnfs, dpath, rev)
 
 		case "data/ogdl":
@@ -217,39 +233,48 @@ func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 				fe.tree = fe.tree.Get(dpath)
 			}
 			return fe, nil
-			/*
-				case "data/json":
+		/*
+			case "data/json":
 
-					b, err := fs.File(path, rev)
-					if err != nil {
-						return nil, err
+				b, err := fs.File(path)
+				if err != nil {
+					return nil, err
+				}
+
+				if i == len(parts)-1 {
+					fe.tree, _ = ogdl.FromJSON(b)
+				} else {
+					// Read the file and process the remaining part of the path
+					dpath := ""
+					for i++; i < len(parts); i++ {
+						dpath += "." + parts[i]
 					}
+					dpath = dpath[1:]
 
-					if i == len(parts)-1 {
-						fe.tree, _ = ogdl.FromJSON(b)
-					} else {
-						// Read the file and process the remaining part of the path
-						dpath := ""
-						for i++; i < len(parts); i++ {
-							dpath += "." + parts[i]
-						}
-						dpath = dpath[1:]
-
-						g, _ := ogdl.FromJSON(b)
-						if g != nil {
-							fe.tree = g.Get(dpath)
-						}
+					g, _ := ogdl.FromJSON(b)
+					if g != nil {
+						fe.tree = g.Get(dpath)
 					}
-					return fe, nil
-			*/
+				}
+				return fe, nil
+		*/
+
+		case "revs":
+
+			var err error
+			fe.tree, err = fs.Revisions(path, rev)
+			// fe.name = path[:len(path)-1]
+			return fe, err
+
 		default:
 			// A file
 			// No more parts can be handled, since this is a blob
 			if i < len(parts)-1 {
+				log.Println("file found, but more elements remaining", parts[i+1], i, len(parts))
 				return nil, errors.New("file found but can not navigate into it")
 			}
-			fe.content, _ = fs.File(path, rev)
 
+			fe.content, _ = fs.File(path, rev)
 		}
 
 		dir = path
