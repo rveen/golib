@@ -1,4 +1,4 @@
-package fs
+package sysfs
 
 import (
 	"errors"
@@ -7,18 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
+	. "github.com/rveen/golib/fs"
 	"github.com/rveen/ogdl"
 )
-
-type FileSystem interface {
-	Root() string
-	Info(path, rev string) (os.FileInfo, error)
-	Dir(path, rev string) ([]os.FileInfo, error)
-	File(path, rev string) ([]byte, error)
-	Revisions(path, rev string) (*ogdl.Graph, error)
-	// Return the type of underlying file system
-	Type() string
-}
 
 type fileSystem struct {
 	root string

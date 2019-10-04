@@ -10,7 +10,8 @@
 // Using the SVN C API would sure be faster, and a pending
 // exercice for the future, but the current solution is
 // simpler.
-package svn
+//
+package svnfs
 
 import (
 	"bytes"
@@ -21,8 +22,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
+	. "github.com/rveen/golib/fs"
 	"github.com/rveen/ogdl"
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
@@ -202,9 +205,213 @@ func (fs *fileSystem) size(path, rev string) int64 {
 	return int64(i)
 }
 
+func (fs *fileSystem) Get(path, rev string) (*fileEntry, error) {
+
+	var err error
+	fe := &fileEntry{}
+
+	if rev == "" {
+		rev = "HEAD"
+	}
+
+	// Prepare and clean path
+	path = filepath.Clean(path)
+
+	if path[len(path)-1] == '@' {
+		fe.tree, err = fs.Revisions(path[:len(path)-1], rev)
+		fe.typ = "revs"
+		fe.name = path
+		return fe, err
+	}
+
+	fi, err := fs.Info(path, rev)
+
+	if fi == nil {
+		return nil, err
+	}
+
+	fe = fi.(*fileEntry)
+
+	switch fe.Type() {
+
+	case "dir":
+
+		indexFile, data, ls := fs.Index(path, rev)
+
+		if indexFile != "" {
+			fe.content, _ = fs.File(indexFile, rev)
+			//fe.typ, _ = Type(fs, indexFile, rev)
+			fe.name = indexFile
+		}
+
+		fe.tree = data
+		fe.info = ls
+
+	case "file":
+		fe.content, _ = fs.File(path, rev)
+
+	}
+	return fe, err
+}
+
+// Index checks if there are index.* files, and the dir info (list).
+//
+// - index.ogdl -> graph
+// - index.* -> string (if there are several, take highest in the list (htm, md, ...)
+// - dir info -> graph.dir (only if index.nolist is not found)
+func (fs *fileSystem) Index(path, rev string) (string, *ogdl.Graph, *ogdl.Graph) {
+
+	// Read the directory
+	ff, err := fs.Dir(path, rev)
+
+	if err != nil {
+		return "", nil, nil
+	}
+
+	var g *ogdl.Graph
+	indexFile := ""
+	nodir := false
+
+	// Read any index.* files
+	for _, f := range ff {
+		name := f.Name()
+
+		if name == "index.link" {
+			continue
+		}
+
+		if name == "index.nolist" {
+			nodir = true
+		}
+
+		if name == "index.ogdl" {
+			b, err := fs.File(path+"/index.ogdl", rev)
+			if err != nil {
+				return "", nil, nil
+			}
+			g = ogdl.FromString(string(b))
+			continue
+		}
+
+		if strings.HasPrefix(name, "index.") {
+			indexFile = path + "/" + name
+		}
+	}
+
+	if nodir {
+		return indexFile, g, nil
+	}
+
+	// Read dir info
+
+	dir := ogdl.New(nil)
+
+	// Add directoryes to the list, but not those starting with . or _
+	for _, f := range ff {
+		name := f.Name()
+
+		// TODO optimize :-|
+		// SVN and git: do not set mode, because Lstat will not work
+		if (f.IsDir() || f.Mode()&os.ModeSymlink != 0) && name[0] != '_' && name[0] != '.' {
+			// If a symlink, we want the info of the object where it points to
+			if f.Mode()&os.ModeSymlink != 0 {
+				f, err = os.Lstat(path + "/" + name + "/")
+				if err != nil || !f.IsDir() {
+					continue
+				}
+			}
+			d := dir.Add("-")
+			d.Add("name").Add(name)
+			d.Add("type").Add("d")
+
+		}
+	}
+
+	// Add regular files to the list, but not those starting with . or _
+	// SVN and git: do not set mode, because Lstat will not work
+	for _, f := range ff {
+		name := f.Name()
+		if !f.IsDir() && name[0] != '_' && name[0] != '.' {
+			// If a symlink, we want the info of the object where it points to
+			if f.Mode()&os.ModeSymlink != 0 {
+				f, err = os.Lstat(path + "/" + name + "/")
+				if err != nil || f.IsDir() {
+					continue
+				}
+			}
+			d := dir.Add("-")
+			d.Add("type").Add(TypeByExtension(filepath.Ext(name)))
+			d.Add("name").Add(name)
+		}
+
+		if strings.HasPrefix(strings.ToLower(name), "readme.") {
+			indexFile = path + "/" + name
+		}
+	}
+
+	return indexFile, g, dir
+}
+
+// Info returns metadata on the path. When no revision is given, the latest one
+// is taken. If a revision is specified, the path given can be either the current
+// one if it exists (the function looks up the historical one) or the path that
+// existed at the moment the revision was made.
+//
+// The command line tools svn and svnlook from the subversion distribution don't
+// give all the required information that we need.
+// 'svn info' needs an existing path in order to return info on old versions of
+// that path. If a path doesn't exist anymore, specifying a revision will not help
+// and no info is returned.
+// 'svnlook info' on the other hand doesn't return info on paths, only on releases
+// 'svnlook meta' is a modification that gives info on paths as they are at the time
+// of the release. See https://github.com/rveen/subversion
+//
 func (fs *fileSystem) Info(path, rev string) (os.FileInfo, error) {
 
-	log.Println("svnfs.Info()", path)
+	if path == "" {
+		path = "."
+	}
+
+	log.Println("svnfs.Info()", fs.root, path, rev)
+
+	var err error
+	var b []byte
+
+	if rev == "" || rev == "HEAD" {
+		b, err = exec.Command("svnlook", "meta", fs.root, path).Output()
+	} else {
+		b, err = exec.Command("svnlook", "meta", "-r", rev, fs.root, path).Output()
+	}
+
+	if err != nil {
+		return fs.info(path, rev)
+	}
+
+	log.Println("svnfs.Info: ", string(b))
+
+	if err != nil {
+		return nil, err
+	}
+
+	g := ogdl.FromBytes(b)
+
+	fe := &fileEntry{}
+	fe.typ = g.Get("kind").String()
+	fe.name = path
+
+	log.Println("svnfs.Type", fe.typ)
+
+	if fe.typ != "dir" {
+		fe.size = g.Get("size").Int64()
+		fe.tree = g
+	}
+
+	return fe, nil
+}
+
+func (fs *fileSystem) info(path, rev string) (os.FileInfo, error) {
+
+	log.Println("svnfs.Info()", path, rev)
 
 	b, err := exec.Command("svn", "info", "--xml", "-r", rev, "file:///"+fs.root+"/"+path).Output()
 
@@ -228,7 +435,7 @@ func (fs *fileSystem) Info(path, rev string) (os.FileInfo, error) {
 
 func (fs *fileSystem) Dir(path, rev string) ([]os.FileInfo, error) {
 
-	log.Println("svnfs.Dir()", path)
+	log.Println("svnfs.Dir()", path, rev)
 
 	b, err := exec.Command("svn", "list", "--xml", "-r", rev, "file:///"+fs.root+"/"+path).Output()
 
@@ -253,6 +460,7 @@ func (fs *fileSystem) Dir(path, rev string) ([]os.FileInfo, error) {
 		f.name = e.Get("name").String()
 		f.size = e.Get("size").Int64()
 		f.typ = e.Get("'@'.kind").String()
+		f.time, _ = time.Parse(time.RFC3339, e.Get("commit.date").String())
 	}
 
 	return dir, nil
@@ -318,6 +526,7 @@ func xml2graph(b []byte) *ogdl.Graph {
 	return g
 }
 
+/*
 func getRev(path string) (string, string) {
 
 	i := strings.LastIndex(path, "@")
@@ -327,3 +536,4 @@ func getRev(path string) (string, string) {
 	return path[0:i], path[i+1:]
 
 }
+*/

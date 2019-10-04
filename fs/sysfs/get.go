@@ -68,7 +68,7 @@
 // How to obtain the log of a path and use it in a template.
 //
 //   g := fs.Log(path)
-package fs
+package sysfs
 
 import (
 	"errors"
@@ -76,7 +76,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rveen/golib/fs/svn"
+	. "github.com/rveen/golib/fs"
+	svn "github.com/rveen/golib/fs/svnfs"
 	"github.com/rveen/ogdl"
 )
 
@@ -146,12 +147,18 @@ func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 	tryAgain:
 
 		// Get info on current path
-		typ, _ = Type(fs, path, rev)
-		fe.typ = typ
-		fe.name = path
-		log.Printf("fs, Path %s, Type %s, Dir %s\n", path, typ, dir)
+		// typ, _ = Type(fs, path, rev)
+		var err error
+		fe, _, err = Info(fs, path, rev)
+		if err != nil {
+			return nil, err
+		}
 
-		switch typ {
+		// fe.typ = typ
+		fe.name = path
+		log.Printf("Get: Type: path %s, Type %s, in dir %s\n", path, typ, dir)
+
+		switch fe.typ {
 
 		case "_": // TODO Reserved for _* parts
 			fe.param = v
@@ -195,7 +202,11 @@ func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 				j := strings.IndexRune(parts[i], '@')
 				if j != -1 {
 					rev = parts[i][j+1:]
-					dpath += "/" + parts[i][0:j]
+					if rev != "" {
+						dpath += "/" + parts[i][0:j]
+					} else {
+						dpath += "/" + parts[i]
+					}
 				} else {
 					dpath += "/" + parts[i]
 				}
@@ -206,7 +217,7 @@ func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 			}
 
 			log.Println("Get(svnfs, ", dpath, rev)
-			return Get(svnfs, dpath, rev)
+			return svnfs.Get(dpath, rev)
 
 		case "data/ogdl":
 

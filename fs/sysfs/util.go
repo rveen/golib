@@ -1,14 +1,14 @@
-package fs
+package sysfs
 
 import (
-	"golib/jupyter"
 	"log"
 	"mime"
 	"os"
 	"path/filepath"
 	"strings"
 
-	// "github.com/russross/blackfriday"
+	. "github.com/rveen/golib/fs"
+	"github.com/rveen/golib/jupyter"
 	"github.com/rveen/markdown"
 	"github.com/rveen/markdown/parser"
 	"github.com/rveen/ogdl"
@@ -52,45 +52,9 @@ func (f *fileEntry) Prepare() {
 	}
 }
 
-var typeByExtension map[string]string
-
-func init() {
-
-	typeByExtension = make(map[string]string)
-	typeByExtension[".md"] = "text/markdown"
-	typeByExtension[".nb"] = "data/notebook"
-	typeByExtension[".html"] = "text/html"
-	typeByExtension[".htm"] = "text/html"
-	typeByExtension[".xml"] = "data/xml"
-	typeByExtension[".ogdl"] = "data/ogdl"
-	typeByExtension[".json"] = "data/json"
-	typeByExtension[".yml"] = "data/yaml"
-	typeByExtension[".pdf"] = "pdf"
-	typeByExtension[".odt"] = "ooffice"
-	typeByExtension[".odp"] = "ooffice"
-	typeByExtension[".ods"] = "ooffice"
-}
-
-// TypeByExtension returns the type of a file according to its extension.
-func TypeByExtension(ext string) string {
-
-	// Allows ext to be an extension or a path, and works with paths starting
-	// with a dot.
-	ext = filepath.Ext(ext)
-
-	s := typeByExtension[ext]
-	if s == "" {
-		s = mime.TypeByExtension(ext)
-		// Should filter out character sets
-	}
-	return s
-}
-
 // Type examines the path and returns its type. Path should be an existing directory
 // or file in the file system.
 func Type(fs FileSystem, path, rev string) (string, error) {
-
-	log.Println("Type:", path)
 
 	if path[len(path)-1] == '@' {
 		return "revs", nil
@@ -143,6 +107,73 @@ func Type(fs FileSystem, path, rev string) (string, error) {
 		}
 	}
 	return "dir", nil
+}
+
+// Type examines the path and returns its type. Path should be an existing directory
+// or file in the file system.
+func Info(fs FileSystem, path, rev string) (*fileEntry, []os.FileInfo, error) {
+
+	fe := &fileEntry{}
+
+	if path[len(path)-1] == '@' {
+		fe.typ = "revs"
+		return fe, nil, nil
+	}
+
+	f, err := fs.Info(path, rev)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if !f.IsDir() {
+		// return its type by looking at the extension
+		s := TypeByExtension(f.Name())
+		if s == "" {
+			fe.typ = "file"
+		} else {
+			fe.typ = s
+		}
+		return fe, nil, nil
+	}
+
+	ff, err := fs.Dir(path, rev)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Git
+	sscore := 0
+	gscore := 0
+	for _, f := range ff {
+
+		switch f.Name() {
+		case "format":
+			sscore++
+			if sscore > 1 {
+				fe.typ = "svn"
+				return fe, ff, nil
+			}
+		case "hooks":
+			sscore++
+			gscore++
+			if sscore > 1 {
+				fe.typ = "svn"
+				return fe, ff, nil
+			}
+			if gscore > 1 {
+				fe.typ = "git"
+				return fe, ff, nil
+			}
+		case "HEAD":
+			gscore++
+			if gscore > 1 {
+				fe.typ = "svn"
+				return fe, ff, nil
+			}
+		}
+	}
+	fe.typ = "dir"
+	return fe, ff, nil
 }
 
 // Index checks if there are index.* files, and the dir info (list).
@@ -233,12 +264,15 @@ func Index(fs FileSystem, path, rev string) (string, *ogdl.Graph, *ogdl.Graph) {
 			d := dir.Add("-")
 			d.Add("type").Add(TypeByExtension(filepath.Ext(name)))
 			d.Add("name").Add(name)
+			d.Add("time").Add(f.ModTime().String())
 		}
 
 		if strings.HasPrefix(strings.ToLower(name), "readme.") {
 			indexFile = path + "/" + name
 		}
 	}
+
+	log.Println(dir.Text())
 
 	return indexFile, g, dir
 }

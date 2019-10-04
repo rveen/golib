@@ -1,4 +1,4 @@
-package fs
+package sysfs
 
 import (
 	"os"
@@ -6,20 +6,6 @@ import (
 
 	"github.com/rveen/ogdl"
 )
-
-// FileEntry implements the os.FileInfo interface and can hold also metainfo and
-// the content of the file.
-type FileEntry interface {
-	Name() string
-	Size() int64
-	Content() []byte
-	Info() *ogdl.Graph
-	Tree() *ogdl.Graph
-	Type() string
-	Mime() string
-	Param() map[string]string
-	Prepare()
-}
 
 // fileEntry implements FileEntry
 type fileEntry struct {
@@ -29,6 +15,7 @@ type fileEntry struct {
 	tree    *ogdl.Graph
 	info    *ogdl.Graph
 	typ     string
+	time    string
 	mime    string
 	param   map[string]string
 }
