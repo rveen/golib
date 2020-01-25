@@ -68,3 +68,4 @@
 // How to obtain the log of a path and use it in a template.
 //
 //   g := fs.Log(path)
+package fs
