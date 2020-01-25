@@ -4,6 +4,7 @@ import (
 	"mime"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/rveen/ogdl"
 )
@@ -32,36 +33,48 @@ type FileEntry interface {
 	Prepare()
 }
 
-var typeByExtension map[string]string
+var typeByExtension = map[string]string{
+	".css":  "text/css",
+	".htm":  "text/html",
+	".html": "text/html",
+	".pdf":  "application/pdf",
+	".md":   "text/markdown",
 
-func init() {
+	".gif":  "image/gif",
+	".png":  "image/png",
+	".jpeg": "image/jpeg",
+	".jpg":  "image/jpeg",
+	".svg":  "image/svg+xml",
+	".webp": "image/webp",
 
-	typeByExtension = make(map[string]string)
-	typeByExtension[".md"] = "text/markdown"
-	typeByExtension[".nb"] = "data/notebook"
-	typeByExtension[".html"] = "text/html"
-	typeByExtension[".htm"] = "text/html"
-	typeByExtension[".xml"] = "data/xml"
-	typeByExtension[".ogdl"] = "data/ogdl"
-	typeByExtension[".json"] = "data/json"
-	typeByExtension[".yml"] = "data/yaml"
-	typeByExtension[".pdf"] = "pdf"
-	typeByExtension[".odt"] = "ooffice"
-	typeByExtension[".odp"] = "ooffice"
-	typeByExtension[".ods"] = "ooffice"
+	".xml":  "data/xml",
+	".ogdl": "data/ogdl",
+	".yml":  "data/yaml",
+	".yaml": "data/yaml",
+	".json": "data/json",
+	".nb":   "data/notebook",
 }
 
 // TypeByExtension returns the type of a file according to its extension.
-func TypeByExtension(ext string) string {
+// A complete path can be provided, or just the extension  with or without dot.
+func TypeByExtension(path string) string {
 
-	// Allows ext to be an extension or a path, and works with paths starting
-	// with a dot.
-	ext = filepath.Ext(ext)
+	// Allows ext to be an extension or a path
+	ext := filepath.Ext(path)
+
+	if len(ext) == 0 && len(path) != 0 {
+		ext = "." + path
+	}
 
 	s := typeByExtension[ext]
 	if s == "" {
 		s = mime.TypeByExtension(ext)
-		// Should filter out character sets
+
+		// Filter out character sets
+		i := strings.IndexByte(s, ';')
+		if i != -1 {
+			return s[0:i]
+		}
 	}
 	return s
 }
