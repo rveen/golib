@@ -1,37 +1,10 @@
-package fs
+package types
 
 import (
 	"mime"
-	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/rveen/ogdl"
 )
-
-type FileSystem interface {
-	Root() string
-	Info(path, rev string) (os.FileInfo, error)
-	Dir(path, rev string) ([]os.FileInfo, error)
-	File(path, rev string) ([]byte, error)
-	Revisions(path, rev string) (*ogdl.Graph, error)
-	// Return the type of underlying file system
-	Type() string
-}
-
-// FileEntry implements the os.FileInfo interface and can hold also metainfo and
-// the content of the file.
-type FileEntry interface {
-	Name() string
-	Size() int64
-	Content() []byte
-	Info() *ogdl.Graph
-	Tree() *ogdl.Graph
-	Type() string
-	Mime() string
-	Param() map[string]string
-	Prepare()
-}
 
 var typeByExtension = map[string]string{
 	".css":  "text/css",

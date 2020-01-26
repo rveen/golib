@@ -69,3 +69,25 @@
 //
 //   g := fs.Log(path)
 package fs
+
+import (
+	"os"
+
+	"github.com/rveen/golib/fs/types"
+	"github.com/rveen/ogdl"
+)
+
+type FileSystem interface {
+	Root() string
+	Info(path, rev string) (*types.FileEntry, error)
+	Dir(path, rev string) ([]os.FileInfo, error)
+	File(path, rev string) ([]byte, error)
+	Revisions(path, rev string) (*ogdl.Graph, error)
+	Type() string
+}
+
+// New creates the FileSystem object needed to operate with a file system. A path
+// to an ordinary directory should be given.
+func New(root string) FileSystem {
+	return sysfs.New(root)
+}

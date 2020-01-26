@@ -1,4 +1,4 @@
-package sysfs
+package fs
 
 import (
 	"errors"
@@ -6,8 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	. "github.com/rveen/golib/fs"
-	svn "github.com/rveen/golib/fs/svnfs"
+	"github.com/rveen/golib/fs/svnfs"
+	"github.com/rveen/golib/fs/sysfs"
+	"github.com/rveen/golib/fs/types"
 	"github.com/rveen/ogdl"
 )
 
@@ -28,7 +29,7 @@ import (
 //
 // [ordinary fs] [-> versioned fs] [-> data file]
 //
-func Get(fs FileSystem, path, rev string) (FileEntry, error) {
+func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
 
 	if rev == "" {
 		rev = "HEAD"
@@ -40,14 +41,14 @@ func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 
 	parts := strings.Split(path, "/")
 	path = ""
-	fe := &fileEntry{}
+	fe := &types.FileEntry{}
 	dir := "."
 	typ := ""
 	v := make(map[string]string)
 
 	if opath == "/" || opath == "." {
 		parts = nil
-		fe.typ = "dir"
+		fe.Typ = "dir"
 		path = "."
 	}
 
@@ -79,19 +80,19 @@ func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 		// Get info on current path
 		// typ, _ = Type(fs, path, rev)
 		var err error
-		fe, _, err = Info(fs, path, rev)
+		fe, err = fs.Info(path, rev)
 		if err != nil {
 			return nil, err
 		}
 
 		// fe.typ = typ
-		fe.name = path
+		fe.Name = path
 		log.Printf("Get: Type: path %s, Type %s, in dir %s\n", path, typ, dir)
 
-		switch fe.typ {
+		switch fe.Typ {
 
 		case "_": // TODO Reserved for _* parts
-			fe.param = v
+			fe.Param = v
 
 		case "":
 			// Path not found (as is), so look for _* and missing extensions
@@ -122,7 +123,7 @@ func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 			//return GetGit(path, parts, i, -1)
 
 		case "svn":
-			svnfs := svn.New(path)
+			svn := svnfs.New(path)
 			dpath := ""
 			rev = "HEAD"
 
@@ -147,7 +148,7 @@ func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 			}
 
 			log.Println("Get(svnfs, ", dpath, rev)
-			return svnfs.Get(dpath, rev)
+			return svn.Get(dpath, rev)
 
 		case "data/ogdl":
 
@@ -156,9 +157,9 @@ func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 				return nil, err
 			}
 
-			fe.tree = ogdl.FromString(string(b))
+			fe.Tree = ogdl.FromString(string(b))
 
-			log.Println("File read", path, fe.tree.Text())
+			log.Println("File read", path, fe.Tree.Text())
 
 			if i != len(parts)-1 {
 				// Read the file and process the remaining part of the path
@@ -169,9 +170,9 @@ func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 				dpath = dpath[1:]
 
 				log.Println("------ dpath", dpath)
-				log.Printf("\n%s\n", fe.tree.Show())
+				log.Printf("\n%s\n", fe.Tree.Show())
 
-				fe.tree = fe.tree.Get(dpath)
+				fe.Tree = fe.Tree.Get(dpath)
 			}
 			return fe, nil
 		/*
@@ -203,7 +204,7 @@ func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 		case "revs":
 
 			var err error
-			fe.tree, err = fs.Revisions(path, rev)
+			fe.Tree, err = fs.Revisions(path, rev)
 			// fe.name = path[:len(path)-1]
 			return fe, err
 
@@ -215,16 +216,16 @@ func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 				return nil, errors.New("file found but can not navigate into it")
 			}
 
-			fe.content, _ = fs.File(path, rev)
+			fe.Content, _ = fs.File(path, rev)
 		}
 
 		dir = path
 
 	}
 
-	log.Printf("Get (at exit): path %s type %s\n", path, fe.Type())
+	// log.Printf("Get (at exit): path %s type %s\n", path, fe.Type())
 
-	if fe.typ != "dir" {
+	if fe.Typ != "dir" {
 		return fe, nil
 	}
 
@@ -239,13 +240,13 @@ func Get(fs FileSystem, path, rev string) (FileEntry, error) {
 	indexFile, data, ls := Index(fs, path, rev)
 
 	if indexFile != "" {
-		fe.content, _ = fs.File(indexFile, rev)
-		fe.typ, _ = Type(fs, indexFile, rev)
-		fe.name = indexFile
+		fe.Content, _ = fs.File(indexFile, rev)
+		fe.Typ, _ = Type(fs, indexFile, rev)
+		fe.Name = indexFile
 	}
 
-	fe.tree = data
-	fe.info = ls
+	fe.Tree = data
+	fe.Info = ls
 
 	return fe, nil
 }

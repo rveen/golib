@@ -25,7 +25,8 @@ import (
 	"time"
 	"unicode"
 
-	. "github.com/rveen/golib/fs"
+	"github.com/rveen/golib/fs/types"
+
 	"github.com/rveen/ogdl"
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
@@ -40,9 +41,6 @@ type fileSystem struct {
 func New(root string) *fileSystem {
 	fs := &fileSystem{root: root}
 	fs.root, _ = filepath.Abs(root)
-
-	log.Println("svnfs.New", fs.root)
-
 	return fs
 }
 
@@ -205,10 +203,10 @@ func (fs *fileSystem) size(path, rev string) int64 {
 	return int64(i)
 }
 
-func (fs *fileSystem) Get(path, rev string) (*fileEntry, error) {
+func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 
 	var err error
-	fe := &fileEntry{}
+	fe := &types.FileEntry{}
 
 	if rev == "" {
 		rev = "HEAD"
@@ -218,9 +216,9 @@ func (fs *fileSystem) Get(path, rev string) (*fileEntry, error) {
 	path = filepath.Clean(path)
 
 	if path[len(path)-1] == '@' {
-		fe.tree, err = fs.Revisions(path[:len(path)-1], rev)
-		fe.typ = "revs"
-		fe.name = path
+		fe.Tree, err = fs.Revisions(path[:len(path)-1], rev)
+		fe.Typ = "revs"
+		fe.Name = path
 		return fe, err
 	}
 
@@ -230,25 +228,25 @@ func (fs *fileSystem) Get(path, rev string) (*fileEntry, error) {
 		return nil, err
 	}
 
-	fe = fi.(*fileEntry)
+	fe = fi
 
-	switch fe.Type() {
+	switch fe.Typ {
 
 	case "dir":
 
 		indexFile, data, ls := fs.Index(path, rev)
 
 		if indexFile != "" {
-			fe.content, _ = fs.File(indexFile, rev)
+			fe.Content, _ = fs.File(indexFile, rev)
 			//fe.typ, _ = Type(fs, indexFile, rev)
-			fe.name = indexFile
+			fe.Name = indexFile
 		}
 
-		fe.tree = data
-		fe.info = ls
+		fe.Tree = data
+		fe.Info = ls
 
 	case "file":
-		fe.content, _ = fs.File(path, rev)
+		fe.Content, _ = fs.File(path, rev)
 
 	}
 	return fe, err
@@ -274,7 +272,7 @@ func (fs *fileSystem) Index(path, rev string) (string, *ogdl.Graph, *ogdl.Graph)
 
 	// Read any index.* files
 	for _, f := range ff {
-		name := f.Name()
+		name := f.Name
 
 		if name == "index.link" {
 			continue
@@ -308,15 +306,15 @@ func (fs *fileSystem) Index(path, rev string) (string, *ogdl.Graph, *ogdl.Graph)
 
 	// Add directoryes to the list, but not those starting with . or _
 	for _, f := range ff {
-		name := f.Name()
+		name := f.Name
 
 		// TODO optimize :-|
 		// SVN and git: do not set mode, because Lstat will not work
-		if (f.IsDir() || f.Mode()&os.ModeSymlink != 0) && name[0] != '_' && name[0] != '.' {
+		if (f.IsDir() || f.Mode&os.ModeSymlink != 0) && name[0] != '_' && name[0] != '.' {
 			// If a symlink, we want the info of the object where it points to
-			if f.Mode()&os.ModeSymlink != 0 {
-				f, err = os.Lstat(path + "/" + name + "/")
-				if err != nil || !f.IsDir() {
+			if f.Mode&os.ModeSymlink != 0 {
+				fi, err := os.Lstat(path + "/" + name + "/")
+				if err != nil || !fi.IsDir() {
 					continue
 				}
 			}
@@ -330,17 +328,17 @@ func (fs *fileSystem) Index(path, rev string) (string, *ogdl.Graph, *ogdl.Graph)
 	// Add regular files to the list, but not those starting with . or _
 	// SVN and git: do not set mode, because Lstat will not work
 	for _, f := range ff {
-		name := f.Name()
+		name := f.Name
 		if !f.IsDir() && name[0] != '_' && name[0] != '.' {
 			// If a symlink, we want the info of the object where it points to
-			if f.Mode()&os.ModeSymlink != 0 {
-				f, err = os.Lstat(path + "/" + name + "/")
-				if err != nil || f.IsDir() {
+			if f.Mode&os.ModeSymlink != 0 {
+				fi, err := os.Lstat(path + "/" + name + "/")
+				if err != nil || fi.IsDir() {
 					continue
 				}
 			}
 			d := dir.Add("-")
-			d.Add("type").Add(TypeByExtension(filepath.Ext(name)))
+			d.Add("type").Add(types.TypeByExtension(filepath.Ext(name)))
 			d.Add("name").Add(name)
 		}
 
@@ -366,7 +364,7 @@ func (fs *fileSystem) Index(path, rev string) (string, *ogdl.Graph, *ogdl.Graph)
 // 'svnlook meta' is a modification that gives info on paths as they are at the time
 // of the release. See https://github.com/rveen/subversion
 //
-func (fs *fileSystem) Info(path, rev string) (os.FileInfo, error) {
+func (fs *fileSystem) Info(path, rev string) (*types.FileEntry, error) {
 
 	if path == "" {
 		path = "."
@@ -395,21 +393,21 @@ func (fs *fileSystem) Info(path, rev string) (os.FileInfo, error) {
 
 	g := ogdl.FromBytes(b)
 
-	fe := &fileEntry{}
-	fe.typ = g.Get("kind").String()
-	fe.name = path
+	fe := &types.FileEntry{}
+	fe.Typ = g.Get("kind").String()
+	fe.Name = path
 
-	log.Println("svnfs.Type", fe.typ)
+	log.Println("svnfs.Type", fe.Typ)
 
-	if fe.typ != "dir" {
-		fe.size = g.Get("size").Int64()
-		fe.tree = g
+	if fe.Typ != "dir" {
+		fe.Size = g.Get("size").Int64()
+		fe.Tree = g
 	}
 
 	return fe, nil
 }
 
-func (fs *fileSystem) info(path, rev string) (os.FileInfo, error) {
+func (fs *fileSystem) info(path, rev string) (*types.FileEntry, error) {
 
 	log.Println("svnfs.Info()", path, rev)
 
@@ -421,19 +419,19 @@ func (fs *fileSystem) info(path, rev string) (os.FileInfo, error) {
 
 	g := xml2graph(b)
 
-	fe := &fileEntry{}
-	fe.typ = g.Get("info.entry.'@'.kind").String()
+	fe := &types.FileEntry{}
+	fe.Typ = g.Get("info.entry.'@'.kind").String()
 
-	log.Println("svnfs.Type", fe.typ)
+	log.Println("svnfs.Type", fe.Typ)
 
-	if fe.typ != "dir" {
-		fe.size = fs.size(path, rev)
+	if fe.Typ != "dir" {
+		fe.Size = fs.size(path, rev)
 	}
 
 	return fe, nil
 }
 
-func (fs *fileSystem) Dir(path, rev string) ([]os.FileInfo, error) {
+func (fs *fileSystem) Dir(path, rev string) ([]*types.FileEntry, error) {
 
 	log.Println("svnfs.Dir()", path, rev)
 
@@ -446,7 +444,7 @@ func (fs *fileSystem) Dir(path, rev string) ([]os.FileInfo, error) {
 	g := xml2graph(b)
 	g = g.Get("lists.list")
 
-	var dir []os.FileInfo
+	var dir []*types.FileEntry
 
 	for _, e := range g.Out {
 
@@ -454,13 +452,13 @@ func (fs *fileSystem) Dir(path, rev string) ([]os.FileInfo, error) {
 			continue
 		}
 
-		f := &fileEntry{}
+		f := &types.FileEntry{}
 		dir = append(dir, f)
 
-		f.name = e.Get("name").String()
-		f.size = e.Get("size").Int64()
-		f.typ = e.Get("'@'.kind").String()
-		f.time, _ = time.Parse(time.RFC3339, e.Get("commit.date").String())
+		f.Name = e.Get("name").String()
+		f.Size = e.Get("size").Int64()
+		f.Typ = e.Get("'@'.kind").String()
+		f.Time, _ = time.Parse(time.RFC3339, e.Get("commit.date").String())
 	}
 
 	return dir, nil
