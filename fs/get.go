@@ -30,32 +30,44 @@ import (
 //
 func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
 
+	// Clean input
 	if rev == "" {
 		rev = "HEAD"
 	}
-
-	// Prepare and clean path
 	path = filepath.Clean(path)
+
+	// Split path into elements
 	opath := path
 
 	parts := strings.Split(path, "/")
 	path = ""
-	fe := &types.FileEntry{}
-	dir := "."
-	typ := ""
-	v := make(map[string]string)
 
 	if opath == "/" || opath == "." {
 		parts = nil
-		fe.Typ = "dir"
 		path = "."
 	}
 
 	log.Println("fs.Get", opath, len(parts))
 
+	// Start by getting the root dir (either 'dir' or 'svn')
+	dir, err := fs.Info("", "")
+	if err != nil {
+		return nil, err
+	}
+
+	switch dir.Typ {
+	case "svn":
+		svn := svnfs.New(path)
+		return svn.Get(path, rev)
+	}
+
+	fe := &types.FileEntry{}
+
 	for i := 0; i < len(parts); i++ {
 
 		part := parts[i]
+
+		log.Println("Part:", part)
 
 		// protection agains starting slash
 		if part == "" {
@@ -74,38 +86,27 @@ func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
 			path += "/" + part
 		}
 
-	tryAgain:
-
-		// Get info on current path
-		// typ, _ = Type(fs, path, rev)
-		var err error
 		fe, err = fs.Info(path, rev)
 		if err != nil {
-			return nil, err
+			fe.Typ = ""
 		}
-
-		// fe.typ = typ
-		fe.Name = path
-		log.Printf("Get: Type: path %s, Type %s, in dir %s\n", path, typ, dir)
 
 		switch fe.Typ {
 
 		case "_": // TODO Reserved for _* parts
-			fe.Param = v
 
 		case "":
 			// Path not found (as is), so look for _* and missing extensions
 			// TODO But return not found if within a data path
-
 			// TODO check _* and add to params
 
-			ext := missingExtension(fs, part, dir, rev)
+			ext := missingExtension(fs, dir, part, rev)
 			if ext == "" {
 				return nil, errors.New("Not found")
 			}
 
 			path += ext
-			goto tryAgain
+			// goto tryAgain
 
 		case "dir":
 			// Check if there is a link (only in ordinary fs)
@@ -113,7 +114,7 @@ func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
 				s := link(fs, path, rev)
 				if s != "" {
 					path = s
-					goto tryAgain
+					// goto tryAgain
 				}
 			}
 
@@ -174,31 +175,30 @@ func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
 				fe.Tree = fe.Tree.Get(dpath)
 			}
 			return fe, nil
-		/*
-			case "data/json":
 
-				b, err := fs.File(path)
-				if err != nil {
-					return nil, err
+		case "data/json":
+
+			b, err := fs.File(path, rev)
+			if err != nil {
+				return nil, err
+			}
+
+			if i == len(parts)-1 {
+				fe.Tree, _ = ogdl.FromJSON(b)
+			} else {
+				// Read the file and process the remaining part of the path
+				dpath := ""
+				for i++; i < len(parts); i++ {
+					dpath += "." + parts[i]
 				}
+				dpath = dpath[1:]
 
-				if i == len(parts)-1 {
-					fe.tree, _ = ogdl.FromJSON(b)
-				} else {
-					// Read the file and process the remaining part of the path
-					dpath := ""
-					for i++; i < len(parts); i++ {
-						dpath += "." + parts[i]
-					}
-					dpath = dpath[1:]
-
-					g, _ := ogdl.FromJSON(b)
-					if g != nil {
-						fe.tree = g.Get(dpath)
-					}
+				g, _ := ogdl.FromJSON(b)
+				if g != nil {
+					fe.Tree = g.Get(dpath)
 				}
-				return fe, nil
-		*/
+			}
+			return fe, nil
 
 		case "revs":
 
@@ -217,22 +217,13 @@ func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
 
 			fe.Content, _ = fs.File(path, rev)
 		}
-
-		dir = path
-
 	}
 
-	// log.Printf("Get (at exit): path %s type %s\n", path, fe.Type())
-
-	if fe.Typ != "dir" {
-		return fe, nil
-	}
-
+	// If we end in a dir, return index
 	// Process directory
 
 	s := link(fs, path, rev)
 	if s != "" {
-		log.Println("link found", s)
 		return Get(fs, s, rev)
 	}
 
@@ -251,16 +242,11 @@ func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
 }
 
 // returns the missing extension if found, else "".
-func missingExtension(fs FileSystem, part, dir, rev string) string {
+func missingExtension(fs FileSystem, dir *types.FileEntry, part, rev string) string {
 
 	// Read the directory just above the latest unfound part.
-	ff, err := fs.Dir(dir, rev)
 
-	if err != nil {
-		return ""
-	}
-
-	for _, f := range ff {
+	for _, f := range dir.Dir {
 		log.Println("  -", f.Name())
 		// Strip extension and check
 		j := strings.LastIndexByte(f.Name(), '.')

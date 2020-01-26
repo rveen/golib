@@ -5,8 +5,19 @@ import (
 	"testing"
 )
 
-var testDir = "/files/go/src/golib/fs/test"
+var testDir = "/files/go/src/github.com/rveen/golib/fs/test"
 
+func TestHtm(t *testing.T) {
+
+	fs := New(testDir)
+
+	_, err := Get(fs, "a/test.htm", "")
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+/*
 func TestHtm(t *testing.T) {
 
 	fs := New(testDir)
@@ -94,3 +105,5 @@ func TestGet1(t *testing.T) {
 		log.Printf("%s %s\n", f.Type(), string(f.Content()))
 	}
 }
+
+*/

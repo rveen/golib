@@ -74,6 +74,8 @@ func (fs *fileSystem) Info(path, rev string) (*types.FileEntry, error) {
 		return nil, err
 	}
 
+	fe.Dir = ff
+
 	// Git
 	sscore := 0
 	gscore := 0

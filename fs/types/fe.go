@@ -27,6 +27,7 @@ type FileEntry struct {
 	Time    time.Time
 	Param   map[string]string
 	Mode    os.FileMode
+	Dir     []os.FileInfo
 }
 
 var isTemplate = map[string]bool{
