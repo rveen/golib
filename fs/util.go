@@ -12,6 +12,7 @@ import (
 
 // Type examines the path and returns its type. Path should be an existing directory
 // or file in the file system.
+/*
 func Type(fs FileSystem, path, rev string) (string, error) {
 
 	if path[len(path)-1] == '@' {
@@ -66,7 +67,7 @@ func Type(fs FileSystem, path, rev string) (string, error) {
 	}
 	return "dir", nil
 }
-
+*/
 // Index checks if there are index.* files, and the dir info (list).
 //
 // - index.ogdl -> graph

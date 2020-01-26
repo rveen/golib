@@ -86,6 +86,7 @@ func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
 			path += "/" + part
 		}
 
+	retry:
 		fe, err = fs.Info(path, rev)
 		if err != nil {
 			fe.Typ = ""
@@ -106,7 +107,7 @@ func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
 			}
 
 			path += ext
-			// goto tryAgain
+			goto retry
 
 		case "dir":
 			// Check if there is a link (only in ordinary fs)
@@ -114,9 +115,10 @@ func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
 				s := link(fs, path, rev)
 				if s != "" {
 					path = s
-					// goto tryAgain
+					goto retry
 				}
 			}
+			dir = fe
 
 		case "git":
 			// A Git server repository
@@ -147,7 +149,6 @@ func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
 				dpath = dpath[1:]
 			}
 
-			log.Println("Get(svnfs, ", dpath, rev)
 			return svn.Get(dpath, rev)
 
 		case "data/ogdl":
@@ -159,8 +160,6 @@ func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
 
 			fe.Tree = ogdl.FromString(string(b))
 
-			log.Println("File read", path, fe.Tree.Text())
-
 			if i != len(parts)-1 {
 				// Read the file and process the remaining part of the path
 				dpath := ""
@@ -168,9 +167,6 @@ func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
 					dpath += "." + parts[i]
 				}
 				dpath = dpath[1:]
-
-				log.Println("------ dpath", dpath)
-				log.Printf("\n%s\n", fe.Tree.Show())
 
 				fe.Tree = fe.Tree.Get(dpath)
 			}
@@ -204,22 +200,20 @@ func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
 
 			var err error
 			fe.Tree, err = fs.Revisions(path, rev)
-			// fe.name = path[:len(path)-1]
 			return fe, err
 
 		default:
-			// A file
-			// No more parts can be handled, since this is a blob
+
+			// A file (with no known structure). No more parts can be handled.
 			if i < len(parts)-1 {
-				log.Println("file found, but more elements remaining", parts[i+1], i, len(parts))
 				return nil, errors.New("file found but can not navigate into it")
 			}
 
 			fe.Content, _ = fs.File(path, rev)
+			return fe, nil
 		}
 	}
 
-	// If we end in a dir, return index
 	// Process directory
 
 	s := link(fs, path, rev)
@@ -231,7 +225,7 @@ func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
 
 	if indexFile != "" {
 		fe.Content, _ = fs.File(indexFile, rev)
-		fe.Typ, _ = Type(fs, indexFile, rev)
+		// TODO: fe.Typ, _ = Type(fs, indexFile, rev)
 		fe.Name = indexFile
 	}
 
