@@ -28,7 +28,7 @@ import (
 //
 // [ordinary fs] [-> versioned fs] [-> data file]
 //
-func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
+func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 
 	// Clean input
 	if rev == "" {
@@ -218,10 +218,10 @@ func Get(fs FileSystem, path, rev string) (*types.FileEntry, error) {
 
 	s := link(fs, path, rev)
 	if s != "" {
-		return Get(fs, s, rev)
+		return fs.Get(s, rev)
 	}
 
-	indexFile, data, ls := Index(fs, path, rev)
+	indexFile, data, ls := fs.Index(fs, path, rev)
 
 	if indexFile != "" {
 		fe.Content, _ = fs.File(indexFile, rev)
