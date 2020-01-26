@@ -30,7 +30,7 @@
 // The two main functions of this package are New and Get.
 //
 //   fs := fs.New("/dir")
-//   fe := fs.Get("file")
+//   fe, err := fs.Get("file")
 //
 // Get returns a FileEntry object that implements the os.FileInfo interface and
 // holds also the content (directoty list, file).
@@ -73,6 +73,7 @@ package fs
 import (
 	"os"
 
+	"github.com/rveen/golib/fs/sysfs"
 	"github.com/rveen/golib/fs/types"
 	"github.com/rveen/ogdl"
 )

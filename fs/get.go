@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/rveen/golib/fs/svnfs"
-	"github.com/rveen/golib/fs/sysfs"
 	"github.com/rveen/golib/fs/types"
 	"github.com/rveen/ogdl"
 )
