@@ -17,17 +17,18 @@ import (
 // FileEntry type
 // TODO: interface extension os os.FileInfo?
 type FileEntry struct {
-	Name    string
-	Size    int64
-	Content []byte
-	Data    *ogdl.Graph
-	Info    *ogdl.Graph
-	Typ     string
-	Mime    string
-	Time    time.Time
-	Param   map[string]string
-	Mode    os.FileMode
-	Dir     []os.FileInfo
+	Name     string
+	Size     int64
+	Content  []byte
+	Template *ogdl.Graph
+	Data     *ogdl.Graph
+	Info     *ogdl.Graph
+	Typ      string
+	Mime     string
+	Time     time.Time
+	Param    map[string]string
+	Mode     os.FileMode
+	Dir      []os.FileInfo
 }
 
 var isTemplate = map[string]bool{
@@ -51,7 +52,7 @@ func (f *FileEntry) Prepare() {
 
 	// Pre-process template or markdown
 	if isTemplate[ext] {
-		f.Data = ogdl.NewTemplate(string(f.Content))
+		f.Template = ogdl.NewTemplate(string(f.Content))
 		f.Typ = "t"
 
 	} else if ext == ".md" {
@@ -64,7 +65,7 @@ func (f *FileEntry) Prepare() {
 
 		f.Content = markdown.ToHTML(f.Content, p, nil)
 
-		f.Data = ogdl.NewTemplate(string(f.Content))
+		f.Template = ogdl.NewTemplate(string(f.Content))
 		f.Mime = "text/html"
 		f.Typ = "m"
 	} else if ext == ".ipynb" {

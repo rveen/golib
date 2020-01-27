@@ -67,8 +67,6 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 
 		part := parts[i]
 
-		log.Println("Part:", part)
-
 		// protection agains starting slash
 		if part == "" {
 			continue
@@ -89,6 +87,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 	retry:
 		fe, err = fs.Info(path, rev)
 		if err != nil {
+			fe = &types.FileEntry{}
 			fe.Typ = ""
 		}
 
@@ -210,6 +209,8 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 			}
 
 			fe.Content, _ = fs.File(path, rev)
+			fe.Name = path
+			fe.Prepare()
 			return fe, nil
 		}
 	}
@@ -221,13 +222,13 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 		return fs.Get(s, rev)
 	}
 
-	err = fs.Index(fe, path, rev)
+	err = fs.Index(dir, path, rev)
 
 	if err != nil {
 
 	}
 
-	return fe, nil
+	return dir, nil
 }
 
 // returns the missing extension if found, else "".
@@ -236,7 +237,6 @@ func missingExtension(fs FileSystem, dir *types.FileEntry, part, rev string) str
 	// Read the directory just above the latest unfound part.
 
 	for _, f := range dir.Dir {
-		log.Println("  -", f.Name())
 		// Strip extension and check
 		j := strings.LastIndexByte(f.Name(), '.')
 		if j == -1 {

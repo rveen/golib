@@ -204,6 +204,8 @@ func (fs *fileSystem) size(path, rev string) int64 {
 
 func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 
+	log.Println("svn.Get", path, rev)
+
 	var err error
 	fe := &types.FileEntry{}
 
@@ -224,10 +226,10 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 	fi, err := fs.Info(path, rev)
 
 	if fi == nil {
-		return nil, err
+		fe = &types.FileEntry{}
+	} else {
+		fe = fi
 	}
-
-	fe = fi
 
 	switch fe.Typ {
 
@@ -241,6 +243,8 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 
 	case "file":
 		fe.Content, _ = fs.File(path, rev)
+		fe.Name = path
+		fe.Prepare()
 
 	}
 	return fe, err
@@ -264,6 +268,8 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 // if found.
 //
 func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) error {
+
+	log.Println("svn.Index", path)
 
 	// Read the directory
 	nodir := false
@@ -300,6 +306,7 @@ func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) error {
 		if strings.HasPrefix(name, "index.") {
 			b, _ := fs.File(path+"/"+name, rev)
 			d.Content = b
+			d.Name = path + "/" + name
 			d.Prepare()
 			continue
 		}
@@ -308,6 +315,7 @@ func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) error {
 		if d.Content == nil && strings.HasPrefix(strings.ToLower(name), "readme.") {
 			b, _ := fs.File(path+"/"+name, rev)
 			d.Content = b
+			d.Name = path + "/" + name
 			d.Prepare()
 		}
 	}
@@ -327,7 +335,7 @@ func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) error {
 		gd.Add("type").Add(f.Typ)
 	}
 
-	d.Data.Add(dir)
+	d.Data = dir
 	return nil
 }
 
@@ -351,7 +359,7 @@ func (fs *fileSystem) Info(path, rev string) (*types.FileEntry, error) {
 		path = "."
 	}
 
-	log.Println("svnfs.Info()", fs.root, path, rev)
+	log.Println("svnfs.Info", fs.root, path, rev)
 
 	var err error
 	var b []byte
@@ -390,7 +398,7 @@ func (fs *fileSystem) Info(path, rev string) (*types.FileEntry, error) {
 
 func (fs *fileSystem) info(path, rev string) (*types.FileEntry, error) {
 
-	log.Println("svnfs.Info()", path, rev)
+	//log.Println("svnfs.info: command: svn info --xml -r", rev, "file:///"+fs.root+"/"+path)
 
 	b, err := exec.Command("svn", "info", "--xml", "-r", rev, "file:///"+fs.root+"/"+path).Output()
 

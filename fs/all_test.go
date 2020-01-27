@@ -11,10 +11,12 @@ func TestHtm(t *testing.T) {
 
 	fs := New(testDir)
 
-	_, err := Get(fs, "a/test.htm", "")
+	fe, err := fs.Get("", "")
 	if err != nil {
 		log.Println(err)
 	}
+
+	log.Println(string(fe.Content))
 }
 
 /*

@@ -72,6 +72,7 @@ package fs
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -127,7 +128,7 @@ func (fs *fileSystem) Info(path, rev string) (*types.FileEntry, error) {
 
 	fe := &types.FileEntry{}
 
-	if path[len(path)-1] == '@' {
+	if len(path) > 1 && path[len(path)-1] == '@' {
 		fe.Typ = "revs"
 		return fe, nil
 	}
@@ -237,8 +238,12 @@ func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) error {
 
 		// Index files overwrite readme's
 		if strings.HasPrefix(name, "index.") {
+
+			fmt.Println("Index", name)
+
 			b, _ := fs.File(path+"/"+name, rev)
 			d.Content = b
+			d.Name = path + "/" + name
 			d.Prepare()
 			continue
 		}
@@ -247,6 +252,7 @@ func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) error {
 		if d.Content == nil && strings.HasPrefix(strings.ToLower(name), "readme.") {
 			b, _ := fs.File(path+"/"+name, rev)
 			d.Content = b
+			d.Name = path + "/" + name
 			d.Prepare()
 		}
 	}
@@ -299,6 +305,6 @@ func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) error {
 		}
 	}
 
-	d.Data.Add(dir)
+	d.Data = dir
 	return nil
 }
