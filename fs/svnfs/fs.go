@@ -17,7 +17,6 @@ import (
 	"bytes"
 	"encoding/xml"
 	"log"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -216,7 +215,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 	path = filepath.Clean(path)
 
 	if path[len(path)-1] == '@' {
-		fe.Tree, err = fs.Revisions(path[:len(path)-1], rev)
+		fe.Data, err = fs.Revisions(path[:len(path)-1], rev)
 		fe.Typ = "revs"
 		fe.Name = path
 		return fe, err
@@ -234,16 +233,11 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 
 	case "dir":
 
-		indexFile, data, ls := fs.Index(path, rev)
+		err := fs.Index(fe, path, rev)
 
-		if indexFile != "" {
-			fe.Content, _ = fs.File(indexFile, rev)
-			//fe.typ, _ = Type(fs, indexFile, rev)
-			fe.Name = indexFile
+		if err != nil {
+
 		}
-
-		fe.Tree = data
-		fe.Info = ls
 
 	case "file":
 		fe.Content, _ = fs.File(path, rev)
@@ -257,18 +251,28 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 // - index.ogdl -> graph
 // - index.* -> string (if there are several, take highest in the list (htm, md, ...)
 // - dir info -> graph.dir (only if index.nolist is not found)
-func (fs *fileSystem) Index(path, rev string) (string, *ogdl.Graph, *ogdl.Graph) {
+// Index checks if there are index.* files in the given directory
+//
+// - index.ogdl -> graph
+// - index.* -> string (if there are several, take highest in the list (htm, md, ...)
+// - dir info -> graph.dir (only if index.nolist is not found)
+//
+// This function assumes that the input file entry already holds the directory
+// listing (in d.Dir, as []os.FileInfo).
+//
+// The same file entry is used as output. It just adds the content of the index file
+// if found.
+//
+func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) error {
 
 	// Read the directory
-	ff, err := fs.Dir(path, rev)
-
-	if err != nil {
-		return "", nil, nil
-	}
-
-	var g *ogdl.Graph
-	indexFile := ""
 	nodir := false
+
+	ff, err := fs.Dir(path, rev)
+	if err != nil {
+		return err
+	}
+	d.Content = nil
 
 	// Read any index.* files
 	for _, f := range ff {
@@ -280,74 +284,51 @@ func (fs *fileSystem) Index(path, rev string) (string, *ogdl.Graph, *ogdl.Graph)
 
 		if name == "index.nolist" {
 			nodir = true
+			continue
 		}
 
 		if name == "index.ogdl" {
 			b, err := fs.File(path+"/index.ogdl", rev)
 			if err != nil {
-				return "", nil, nil
+				return err
 			}
-			g = ogdl.FromString(string(b))
+			d.Data = ogdl.FromString(string(b))
 			continue
 		}
 
+		// Index files overwrite readme's
 		if strings.HasPrefix(name, "index.") {
-			indexFile = path + "/" + name
+			b, _ := fs.File(path+"/"+name, rev)
+			d.Content = b
+			d.Prepare()
+			continue
+		}
+
+		// The readme file is only read in if no index file is present
+		if d.Content == nil && strings.HasPrefix(strings.ToLower(name), "readme.") {
+			b, _ := fs.File(path+"/"+name, rev)
+			d.Content = b
+			d.Prepare()
 		}
 	}
 
 	if nodir {
-		return indexFile, g, nil
+		return nil
 	}
 
 	// Read dir info
 
-	dir := ogdl.New(nil)
+	dir := ogdl.New("dir")
 
-	// Add directoryes to the list, but not those starting with . or _
+	// Add directories to the list, but not those starting with . or _
 	for _, f := range ff {
-		name := f.Name
-
-		// TODO optimize :-|
-		// SVN and git: do not set mode, because Lstat will not work
-		if (f.IsDir() || f.Mode&os.ModeSymlink != 0) && name[0] != '_' && name[0] != '.' {
-			// If a symlink, we want the info of the object where it points to
-			if f.Mode&os.ModeSymlink != 0 {
-				fi, err := os.Lstat(path + "/" + name + "/")
-				if err != nil || !fi.IsDir() {
-					continue
-				}
-			}
-			d := dir.Add("-")
-			d.Add("name").Add(name)
-			d.Add("type").Add("d")
-
-		}
+		gd := dir.Add("-")
+		gd.Add("name").Add(f.Name)
+		gd.Add("type").Add(f.Typ)
 	}
 
-	// Add regular files to the list, but not those starting with . or _
-	// SVN and git: do not set mode, because Lstat will not work
-	for _, f := range ff {
-		name := f.Name
-		if !f.IsDir() && name[0] != '_' && name[0] != '.' {
-			// If a symlink, we want the info of the object where it points to
-			if f.Mode&os.ModeSymlink != 0 {
-				fi, err := os.Lstat(path + "/" + name + "/")
-				if err != nil || fi.IsDir() {
-					continue
-				}
-			}
-			d := dir.Add("-")
-			d.Add("type").Add(types.TypeByExtension(filepath.Ext(name)))
-			d.Add("name").Add(name)
-		}
-
-		if strings.HasPrefix(strings.ToLower(name), "readme.") {
-			indexFile = path + "/" + name
-		}
-	}
-
-	return indexFile, g, dir
+	d.Data.Add(dir)
+	return nil
 }
 
 // Info returns metadata on the path. When no revision is given, the latest one
@@ -401,7 +382,7 @@ func (fs *fileSystem) Info(path, rev string) (*types.FileEntry, error) {
 
 	if fe.Typ != "dir" {
 		fe.Size = g.Get("size").Int64()
-		fe.Tree = g
+		fe.Data = g
 	}
 
 	return fe, nil

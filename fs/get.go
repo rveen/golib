@@ -158,7 +158,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 				return nil, err
 			}
 
-			fe.Tree = ogdl.FromString(string(b))
+			fe.Data = ogdl.FromString(string(b))
 
 			if i != len(parts)-1 {
 				// Read the file and process the remaining part of the path
@@ -168,7 +168,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 				}
 				dpath = dpath[1:]
 
-				fe.Tree = fe.Tree.Get(dpath)
+				fe.Data = fe.Data.Get(dpath)
 			}
 			return fe, nil
 
@@ -180,7 +180,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 			}
 
 			if i == len(parts)-1 {
-				fe.Tree, _ = ogdl.FromJSON(b)
+				fe.Data, _ = ogdl.FromJSON(b)
 			} else {
 				// Read the file and process the remaining part of the path
 				dpath := ""
@@ -191,7 +191,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 
 				g, _ := ogdl.FromJSON(b)
 				if g != nil {
-					fe.Tree = g.Get(dpath)
+					fe.Data = g.Get(dpath)
 				}
 			}
 			return fe, nil
@@ -199,7 +199,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 		case "revs":
 
 			var err error
-			fe.Tree, err = fs.Revisions(path, rev)
+			fe.Data, err = fs.Revisions(path, rev)
 			return fe, err
 
 		default:
@@ -221,16 +221,11 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 		return fs.Get(s, rev)
 	}
 
-	indexFile, data, ls := fs.Index(fs, path, rev)
+	err = fs.Index(fe, path, rev)
 
-	if indexFile != "" {
-		fe.Content, _ = fs.File(indexFile, rev)
-		// TODO: fe.Typ, _ = Type(fs, indexFile, rev)
-		fe.Name = indexFile
+	if err != nil {
+
 	}
-
-	fe.Tree = data
-	fe.Info = ls
 
 	return fe, nil
 }

@@ -20,7 +20,7 @@ type FileEntry struct {
 	Name    string
 	Size    int64
 	Content []byte
-	Tree    *ogdl.Graph
+	Data    *ogdl.Graph
 	Info    *ogdl.Graph
 	Typ     string
 	Mime    string
@@ -51,7 +51,7 @@ func (f *FileEntry) Prepare() {
 
 	// Pre-process template or markdown
 	if isTemplate[ext] {
-		f.Tree = ogdl.NewTemplate(string(f.Content))
+		f.Data = ogdl.NewTemplate(string(f.Content))
 		f.Typ = "t"
 
 	} else if ext == ".md" {
@@ -64,7 +64,7 @@ func (f *FileEntry) Prepare() {
 
 		f.Content = markdown.ToHTML(f.Content, p, nil)
 
-		f.Tree = ogdl.NewTemplate(string(f.Content))
+		f.Data = ogdl.NewTemplate(string(f.Content))
 		f.Mime = "text/html"
 		f.Typ = "m"
 	} else if ext == ".ipynb" {

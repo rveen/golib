@@ -29,8 +29,8 @@
 //
 // The two main functions of this package are New and Get.
 //
-//   fs := fs.New("/dir")
-//   fe, err := fs.Get("file")
+//   ff := fs.New("/dir")
+//   fe, err := ff.Get("file")
 //
 // Get returns a FileEntry object that implements the os.FileInfo interface and
 // holds also the content (directoty list, file).
@@ -40,7 +40,7 @@
 // Templates
 //
 // File extensions that are configured as OGDL templates are preprocessed as such,
-// that is, they are parsed and converted into an OGDL object accessible through fe.Tree().
+// that is, they are parsed and converted into an OGDL object accessible through fe.Data.
 // TODO: should this be done outside of this package?? (caching is a reason to do
 // it here)
 //
@@ -73,7 +73,6 @@ package fs
 import (
 	"errors"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -89,6 +88,7 @@ type FileSystem interface {
 	File(path, rev string) ([]byte, error)
 	Revisions(path, rev string) (*ogdl.Graph, error)
 	Type() string
+	Get(path, rev string) (*types.FileEntry, error)
 }
 
 type fileSystem struct {
@@ -193,20 +193,25 @@ func (fs *fileSystem) Info(path, rev string) (*types.FileEntry, error) {
 	return fe, err
 }
 
-// Index checks if there are index.* files, and the dir info (list).
+// Index checks if there are index.* files in the given directory
 //
 // - index.ogdl -> graph
 // - index.* -> string (if there are several, take highest in the list (htm, md, ...)
 // - dir info -> graph.dir (only if index.nolist is not found)
-func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) (*types.FileEntry, error) {
+//
+// This function assumes that the input file entry already holds the directory
+// listing (in d.Dir, as []os.FileInfo).
+//
+// The same file entry is used as output. It just adds the content of the index file
+// if found.
+//
+func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) error {
 
 	// Read the directory
-	var g *ogdl.Graph
 	var err error
-	indexFile := ""
 	nodir := false
 
-	fe := &types.FileEntry
+	d.Content = nil
 
 	// Read any index.* files
 	for _, f := range d.Dir {
@@ -218,31 +223,43 @@ func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) (*types.FileEn
 
 		if name == "index.nolist" {
 			nodir = true
+			continue
 		}
 
 		if name == "index.ogdl" {
 			b, err := fs.File(path+"/index.ogdl", rev)
 			if err != nil {
-				return nil, err
+				return err
 			}
-			fe.Tree = ogdl.FromString(string(b))
+			d.Data = ogdl.FromString(string(b))
 			continue
 		}
 
+		// Index files overwrite readme's
 		if strings.HasPrefix(name, "index.") {
-			b, err := fs.File(path+"/"+name, rev)
+			b, _ := fs.File(path+"/"+name, rev)
+			d.Content = b
+			d.Prepare()
+			continue
+		}
+
+		// The readme file is only read in if no index file is present
+		if d.Content == nil && strings.HasPrefix(strings.ToLower(name), "readme.") {
+			b, _ := fs.File(path+"/"+name, rev)
+			d.Content = b
+			d.Prepare()
 		}
 	}
 
 	if nodir {
-		return indexFile, g, nil
+		return nil
 	}
 
 	// Read dir info
 
-	dir := ogdl.New(nil)
+	dir := ogdl.New("dir")
 
-	// Add directoryes to the list, but not those starting with . or _
+	// Add directories to the list, but not those starting with . or _
 	for _, f := range d.Dir {
 		name := f.Name()
 
@@ -256,9 +273,9 @@ func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) (*types.FileEn
 					continue
 				}
 			}
-			d := dir.Add("-")
-			d.Add("name").Add(name)
-			d.Add("type").Add("d")
+			gd := dir.Add("-")
+			gd.Add("name").Add(name)
+			gd.Add("type").Add("d")
 
 		}
 	}
@@ -275,18 +292,13 @@ func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) (*types.FileEn
 					continue
 				}
 			}
-			d := dir.Add("-")
-			d.Add("type").Add(types.TypeByExtension(filepath.Ext(name)))
-			d.Add("name").Add(name)
-			d.Add("time").Add(f.ModTime().String())
-		}
-
-		if strings.HasPrefix(strings.ToLower(name), "readme.") {
-			indexFile = path + "/" + name
+			gd := dir.Add("-")
+			gd.Add("type").Add(types.TypeByExtension(filepath.Ext(name)))
+			gd.Add("name").Add(name)
+			gd.Add("time").Add(f.ModTime().String())
 		}
 	}
 
-	log.Println(dir.Text())
-
-	return indexFile, g, dir
+	d.Data.Add(dir)
+	return nil
 }
