@@ -50,33 +50,6 @@ func (f *FileEntry) Prepare() {
 	ext := filepath.Ext(f.Name)
 	f.Mime = mime.TypeByExtension(ext)
 
-	// Task checks
-	for i := 0; i < len(f.Content); i++ {
-
-		if i+3 >= len(f.Content) {
-			break
-		}
-
-		if f.Content[i] == '[' && f.Content[i+2] == ']' {
-			switch f.Content[i+1] {
-			case 'x':
-				f.Content[i+2] = 0x92
-				f.Content[i] = 0xE2
-				f.Content[i+1] = 0x98
-			default:
-				f.Content[i+2] = 0x90
-				f.Content[i] = 0xE2
-				f.Content[i+1] = 0x98
-			case '/':
-				f.Content[i+2] = 0x91
-				f.Content[i] = 0xE2
-				f.Content[i+1] = 0x98
-			}
-			i += 3
-		}
-
-	}
-
 	// Pre-process template or markdown
 	if isTemplate[ext] {
 		f.Template = ogdl.NewTemplate(string(f.Content))
@@ -89,6 +62,32 @@ func (f *FileEntry) Prepare() {
 		// this in init() !!!
 		extensions := parser.CommonExtensions | parser.AutoHeadingIDs
 		p := parser.NewWithExtensions(extensions)
+
+		// Task check marks to Unicode
+		for i := 0; i < len(f.Content); i++ {
+
+			if i+3 >= len(f.Content) {
+				break
+			}
+
+			if f.Content[i] == '[' && f.Content[i+2] == ']' {
+				switch f.Content[i+1] {
+				case 'x':
+					f.Content[i+2] = 0x92
+					f.Content[i] = 0xE2
+					f.Content[i+1] = 0x98
+				default:
+					f.Content[i+2] = 0x90
+					f.Content[i] = 0xE2
+					f.Content[i+1] = 0x98
+				case '/':
+					f.Content[i+2] = 0x91
+					f.Content[i] = 0xE2
+					f.Content[i+1] = 0x98
+				}
+				i += 3
+			}
+		}
 
 		f.Content = markdown.ToHTML(f.Content, p, nil)
 
