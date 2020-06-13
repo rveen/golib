@@ -7,8 +7,7 @@ package is that it allows navigation into either conventional or versioned file
 systems (such as Subversion or Git), and into data files (only OGDL at the moment).
 Use of file extensions is optional (if the file name is unique).
 
-For now this is a read-only implementation. The content of a path is returned if found,
-but the file system cannot be modified.
+For now this is a read-only implementation. The content of a path is returned if found, but the file system cannot be modified.
 
 When the path points to a directory that contains an index.* file
 it returnes this file along with the directory list. Presence of several
@@ -20,7 +19,7 @@ directory list).
 The two main functions of this package are New and Get.
 
     fs := fs.New("/dir")
-    fe := fs.Get("file")
+    fe := fs.Get("path")
 
 ## Implementation details
 
@@ -28,17 +27,22 @@ The two main functions of this package are New and Get.
 
 A file system is opened by giving a root location to New():
 
+    include "github.com/rveen/golib/fs"
+
     fs := fs.New("/dir")
 
 where fs is a FileSystem interface. Its root is per definition an ordinary directory.
 
-The two main functions that FileSystem implements are Dir() and File():
+Each FileSystem implements these functions:
 
     type FileSystem interface {
         Root() string
-        Info(path, rev string) (os.FileInfo, error)
-        Dir(path, rev string) ([]os.FileInfo, error)
-        File(path, rev string) ([]byte, error)
+	    Info(path, rev string) (*types.FileEntry, error)
+	    Dir(path, rev string) ([]os.FileInfo, error)
+	    File(path, rev string) ([]byte, error)
+	    Revisions(path, rev string) (*ogdl.Graph, error)
+	    Type() string
+	    Get(path, rev string) (*types.FileEntry, error)
     }
 
 
@@ -47,3 +51,18 @@ The two main functions that FileSystem implements are Dir() and File():
 ### FileEntry
 
 FileEntry is an interface that extends the standard os.FileInfo.
+
+    type FileEntry struct {
+	    Name     string
+	    Size     int64
+	    Content  []byte
+	    Template *ogdl.Graph
+	    Data     *ogdl.Graph
+	    Info     *ogdl.Graph
+	    Typ      string
+	    Mime     string
+	    Time     time.Time
+	    Param    map[string]string
+	    Mode     os.FileMode
+	    Dir      []os.FileInfo
+    }

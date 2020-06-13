@@ -18,12 +18,12 @@
 // Paths are a sequence of elements separated by slashes, following the Unix / Linux
 // notation. Two special cases exist:
 //
-// * _n, where n is a number, is interpreted as a release number, and removed from
+// - @token is interpreted as a release or commit identifier, and removed from
 // the path. Instead a "revision" parameter is added to fe.Param().
 //
-// * If an element is not found in a directory but the directory contains a _token
+// - If an element is not found in a directory but the directory contains a _token
 // entry, that one is followed. A parameter is attached to fe.Params() with the
-// token as name and the element as value.
+// token as name and the unfound element as value.
 //
 // Example
 //
@@ -104,10 +104,13 @@ func New(root string) *fileSystem {
 	return fs
 }
 
+// Root returns the absolute path to the root of this FileSystem (the path
+// given to New).
 func (fs *fileSystem) Root() string {
 	return fs.root
 }
 
+// Types return either "svn", "git" or "".
 func (fs *fileSystem) Type() string {
 	return ""
 }
@@ -124,6 +127,16 @@ func (fs *fileSystem) File(path, rev string) ([]byte, error) {
 	return ioutil.ReadFile(fs.root + "/" + path)
 }
 
+// Info returns the type of 'path'.
+//
+// If 'path' ends with @, it returns "revs" (meaning that we expect a list of
+// revisions of that path).
+//
+// 'path' can be either a directory or a file. If it's a directory, it will
+// return "svn" or "git" if it identifies it as the root of a server repository
+// of either type, else it returns "dir".
+//
+// If 'path' is a file, it returns its type if in the types.go list, else "file".
 func (fs *fileSystem) Info(path, rev string) (*types.FileEntry, error) {
 
 	fe := &types.FileEntry{}

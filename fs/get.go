@@ -15,7 +15,7 @@ import (
 //
 //     Path := "" | "/" | (element["/" element]*)
 //
-// _n is interpreted as a revision number. The revision applies to the complete path
+// @n is interpreted as a revision number. The revision applies to the complete path
 // given, and makes only sense if the given file system is versioned.
 //
 // Directory entries with the format _token (where token is not a number) are
@@ -29,6 +29,9 @@ import (
 // [ordinary fs] [-> versioned fs] [-> data file]
 //
 func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
+
+	// TODO create this map only if there are parameters
+	params := make(map[string]string)
 
 	// Clean input
 	if rev == "" {
@@ -93,19 +96,24 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 
 		switch fe.Typ {
 
-		case "_": // TODO Reserved for _* parts
-
 		case "":
-			// Path not found (as is), so look for _* and missing extensions
-			// TODO But return not found if within a data path
-			// TODO check _* and add to params
+			// Path not found (as is), so:
+			// - look for missing extension
+			// - look for _*
 
 			ext := missingExtension(fs, dir, part, rev)
-			if ext == "" {
-				return nil, errors.New("Not found")
+			if ext != "" {
+				path += ext
+				goto retry
 			}
 
-			path += ext
+			// If there is an entry of the form _token in this directory,
+			// continue into it, adding token=unfound_element to fe.Params()
+			p := fs.variable(fe, dir, part, params)
+			if p == "" {
+				return nil, errors.New("Not found")
+			}
+			path = path[0:len(path)-len(part)] + p
 			goto retry
 
 		case "dir":
@@ -209,6 +217,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 			}
 
 			fe.Content, _ = fs.File(path, rev)
+			fe.Param = params
 			fe.Name = path
 			fe.Prepare()
 			return fe, nil
@@ -227,6 +236,8 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 	if err != nil {
 
 	}
+
+	dir.Param = params
 
 	return dir, nil
 }
@@ -262,4 +273,15 @@ func link(fs FileSystem, path, rev string) string {
 	}
 
 	return strings.TrimSpace(string(b))
+}
+
+func (fs *fileSystem) variable(fe, dir *types.FileEntry, part string, params map[string]string) string {
+
+	for _, f := range dir.Dir {
+		if f.Name()[0] == '_' {
+			params[f.Name()[1:]] = part
+			return f.Name()
+		}
+	}
+	return ""
 }
