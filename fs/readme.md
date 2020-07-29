@@ -50,7 +50,7 @@ Each FileSystem implements these functions:
 
 ### FileEntry
 
-FileEntry is an interface that extends the standard os.FileInfo.
+FileEntry is an interface that extends the standard os.FileInfo. It represents either a directory or a file. 
 
     type FileEntry struct {
 	    Name     string
