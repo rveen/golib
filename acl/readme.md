@@ -32,3 +32,5 @@ parts of them. For example:
     
 allows all people to access the URLs "/static" and "/static/*", but not "/static2".
 There is no support for wildcards or partial path elements.
+
+In absence of rules, the default is to allow anything to all.
