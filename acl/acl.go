@@ -9,6 +9,9 @@
 //
 // [groups]
 // name group1 group2 ...
+//
+// All rules are checked in order.
+//
 package acl
 
 import (
@@ -21,6 +24,7 @@ import (
 // ACL contains rules and groups for implementing
 // an access control list
 type ACL struct {
+	file   string
 	rules  []Rule
 	groups map[string][]string
 }
@@ -49,6 +53,7 @@ func New(filename string) (*ACL, error) {
 
 	section := ""
 	acl := &ACL{}
+	acl.file = filename
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -101,6 +106,72 @@ func New(filename string) (*ACL, error) {
 	return acl, nil
 }
 
+// Reload is meant to be called by a file watcher that monitors the ACL definition
+// file for changes.
+func (acl *ACL) Reload() error {
+
+	file, err := os.Open(acl.file)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	section := ""
+	acl2 := &ACL{}
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+
+		line := scanner.Text()
+
+		switch line {
+		case "[rules]":
+			section = "r"
+
+		case "[groups]":
+			section = "g"
+
+		default:
+
+			tk := strings.Fields(line)
+
+			if len(tk) == 0 || tk[0] == "#" {
+				continue
+			}
+
+			if section == "r" {
+				// sub obj op [pol]
+				switch len(tk) {
+				case 3:
+					acl2.AddRule(tk[0], tk[1], tk[2], true)
+				case 4:
+					acl2.AddRule(tk[0], tk[1], tk[2], tk[3] == "+")
+				default:
+					println("rule: error in number of attributes", len(tk))
+				}
+
+			} else if section == "g" {
+				if len(tk) > 1 {
+					for i := 1; i < len(tk); i++ {
+						acl2.AddGroup(tk[i], tk[0])
+					}
+				}
+			}
+		}
+
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	// TODO: mutex
+	acl.groups = acl2.groups
+	acl.rules = acl2.rules
+
+	return nil
+}
+
 func (acl *ACL) AddRule(sub, obj, op string, pol bool) {
 	r := Rule{sub, obj, op, pol, false}
 
@@ -125,15 +196,13 @@ func (acl *ACL) AddGroup(sub, group string) {
 	println("addGroup", group, sub, len(acl.groups[sub]))
 }
 
-// Enforce check the ACL for a specific resource and user, and returns true
+// Enforce checks the ACL for a specific resource and user, and returns true
 // if access is granted.
 func (acl *ACL) Enforce(sub, obj, op string) bool {
 
 	result := true
 
-	for i, r := range acl.rules {
-
-		println("rule", i, r.Subject, r.Object, r.Operation, r.Polarity)
+	for _, r := range acl.rules {
 
 		// operation in rule ?
 		if op != r.Operation && r.Operation != "*" {
@@ -141,14 +210,17 @@ func (acl *ACL) Enforce(sub, obj, op string) bool {
 		}
 
 		// Object in rule ?
-		if !r.Prefix {
-			if obj != r.Object {
+		if len(obj) < len(r.Object) {
+			continue
+		}
+
+		if strings.HasPrefix(obj, r.Object) {
+			if len(obj) > len(r.Object) && obj[len(r.Object)] != '/' {
+				// Check that this works for any encoding
 				continue
 			}
 		} else {
-			if r.Object != "" && !strings.HasPrefix(obj, r.Object) {
-				continue
-			}
+			continue
 		}
 
 		// Subject in rule

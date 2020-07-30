@@ -17,9 +17,18 @@ Where subgroup can be a user.
     # A comment
     [rules]
     * * * -
-    * /static/* *
+    * /static *
     purchasing /dept/purchasing *
 
     [groups]
     purchasing john alice bob
     
+All rules are checked, in the same order as written. 
+
+Paths (resources) refer to one or several consecutive path elements, not 
+parts of them. For example:
+
+    * /static *
+    
+allows all people to access the URLs "/static" and "/static/*", but not "/static2".
+There is no support for wildcards or partial path elements.
