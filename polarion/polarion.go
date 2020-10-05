@@ -471,8 +471,18 @@ func (doc *Document) Html() string {
 								if tag == "div" {
 									buffer.WriteString(" class='" + cls + "'>")
 
+									itemTitle := item.Tree.Get("title").String()
+									buffer.WriteString("<a name='" + Sanitize(itemTitle) + "'>")
+
+									// Add item to TOI
+									toi := doc.Tree.Get("toi")
+									if toi == nil {
+										toi = doc.Tree.Add("toi")
+									}
+									toi.Add(item.ID).Add(itemTitle)
+
 									buffer.WriteString("<div class='wiTitle'>")
-									buffer.WriteString(item.Tree.Get("title").String())
+									buffer.WriteString(itemTitle)
 									buffer.WriteString(" (<span class='uid'>" + item.ID + ", " + item.Tree.Get("type").String() + "</span>)")
 									buffer.WriteString("</div><br>")
 
