@@ -12,8 +12,10 @@ import (
 	"bytes"
 	"encoding/xml"
 	"io/ioutil"
+
 	"log"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -130,10 +132,10 @@ func (P *Polarion) Item(id string) *Item {
 
 func (P *Polarion) Document(prj, space, doc string) *Document {
 
-	log.Printf("Doc\n%s / %s / %s", prj, space, doc)
+	// log.Printf("Doc\n%s / %s / %s", prj, space, doc)
 
 	for _, d := range P.documents {
-		log.Printf("Doc\n%s / %s / %s", d.Prj.ID, d.Space, d.ID)
+		//log.Printf("Doc\n%s / %s / %s", d.Prj.ID, d.Space, d.ID)
 
 		if d.Space == space && d.Prj.ID == prj && doc == d.ID {
 			return d
@@ -410,6 +412,8 @@ func (doc *Document) Html() string {
 	attachmentDir := PolarionBasePath + doc.Prj.ID + "/modules/" + doc.Space + "/" + doc.ID + "/attachments/"
 	wiDir := PolarionBasePath + doc.Prj.ID + "/modules/" + doc.Space + "/" + doc.ID + "/workitems/"
 
+	removeStyle := regexp.MustCompile(`style=".*"`)
+
 	for {
 		tt := z.Next()
 
@@ -453,6 +457,9 @@ func (doc *Document) Html() string {
 				for {
 					k, v, more := z.TagAttr()
 					attr := string(k)
+					if attr == "style" {
+						continue
+					}
 					val := string(v)
 					if attr == "id" {
 						i := strings.Index(val, "workitem;params=id=")
@@ -472,7 +479,7 @@ func (doc *Document) Html() string {
 									buffer.WriteString(" class='" + cls + "'>")
 
 									itemTitle := item.Tree.Get("title").String()
-									buffer.WriteString("<a name='" + Sanitize(itemTitle) + "'>")
+									buffer.WriteString("<a id='" + item.ID + "'>")
 
 									// Add item to TOI
 									toi := doc.Tree.Get("toi")
@@ -489,6 +496,10 @@ func (doc *Document) Html() string {
 									desc := item.Tree.Get("description").String()
 									desc = strings.Replace(desc, "attachment:", attachmentDir, -1)
 									desc = strings.Replace(desc, "workitemimg:", wiDir+item.ID+"/attachment", -1)
+
+									// This possible HTML is ugly (full of spans and style)
+									desc = removeStyle.ReplaceAllString(desc, "")
+
 									buffer.WriteString(desc)
 
 									// Add test steps if any
@@ -517,7 +528,10 @@ func (doc *Document) Html() string {
 
 								} else if htag[0] == 'h' && len(htag) == 2 {
 
-									buffer.WriteString(" name='" + Sanitize(item.Tree.Get("title").String()) + "'>")
+									title := item.Tree.Get("title").String()
+									anchor := Sanitize(title)
+
+									buffer.WriteString(" id='" + anchor + "'>")
 
 									lev := int(htag[1] - '0')
 									if lev >= 2 && lev < 7 {
@@ -533,9 +547,9 @@ func (doc *Document) Html() string {
 										}
 
 										hd.WriteByte(' ')
-										hd.WriteString(item.Tree.Get("title").String())
+										hd.WriteString(title)
 										buffer.WriteString(hd.String())
-										doc.Toc.Add(hd.String())
+										doc.Toc.Add(hd.String()).Add(Sanitize(anchor))
 									}
 								}
 
@@ -560,172 +574,6 @@ func (doc *Document) Html() string {
 			buffer.WriteString("</")
 			buffer.Write(b)
 			buffer.WriteString(">\n")
-		case html.TextToken:
-			buffer.Write(z.Text())
-		}
-	}
-	return buffer.String()
-}
-
-func (doc *Document) TeX() string {
-
-	if doc == nil || doc.Tree == nil {
-		return "No content"
-	}
-
-	doc.Toc = ogdl.New(nil)
-
-	htm := doc.Tree.Get("module.homePageContent").String()
-
-	z := html.NewTokenizer(strings.NewReader(htm))
-
-	var buffer bytes.Buffer
-
-	attachmentDir := PolarionBasePath + doc.Prj.ID + "/modules/" + doc.Space + "/" + doc.ID + "/attachments/"
-	wiDir := PolarionBasePath + doc.Prj.ID + "/modules/" + doc.Space + "/" + doc.ID + "/workitems/"
-
-	for {
-		tt := z.Next()
-
-		if tt == html.ErrorToken {
-			break
-		}
-		switch tt {
-
-		case html.SelfClosingTagToken:
-
-			htag, attr := z.TagName()
-			buffer.WriteString("<")
-			buffer.Write(htag)
-			if attr {
-				for {
-					k, v, more := z.TagAttr()
-					attr := string(k)
-					val := string(v)
-
-					if attr == "src" && strings.HasPrefix(val, "attachment:") {
-						val = attachmentDir + val[11:]
-					}
-					buffer.WriteString(" " + attr)
-					buffer.WriteString("=\"" + val + "\" ")
-
-					if !more {
-						break
-					}
-				}
-			}
-			buffer.WriteString(">")
-
-		case html.StartTagToken:
-
-			htag, attr := z.TagName()
-			//buffer.WriteString("<")
-			//buffer.Write(htag)
-			closed := false
-
-			if attr {
-				for {
-					k, v, more := z.TagAttr()
-					attr := string(k)
-					val := string(v)
-					if attr == "id" {
-						i := strings.Index(val, "workitem;params=id=")
-						if i != -1 {
-							wi := val[i+19:]
-							i = strings.Index(wi, "|") // External!
-							cls := "item"
-							if i != -1 {
-								wi = wi[0:i]
-								cls = "item-ext"
-							}
-							closed = true
-							item := doc.Prj.Items[wi]
-							if item != nil {
-								tag := string(htag)
-								if tag == "div" {
-									buffer.WriteString(" class='" + cls + "'>")
-
-									buffer.WriteString("<div class='wiTitle'><span class='uid'><a href='/polarion/item/" + item.ID + "'>")
-									buffer.WriteString(item.ID)
-									buffer.WriteString("</a>: </span> ")
-
-									buffer.WriteString(item.Tree.Get("title").String())
-									buffer.WriteString("</div><br>")
-
-									desc := item.Tree.Get("description").String()
-									desc = strings.Replace(desc, "attachment:", attachmentDir, -1)
-									desc = strings.Replace(desc, "workitemimg:", wiDir+item.ID+"/attachment", -1)
-									buffer.WriteString(desc)
-
-									// Add test steps if any
-									ts := item.Tree.Get("testSteps.struct.steps.list")
-
-									if ts != nil && ts.Len() > 0 {
-
-										buffer.WriteString(`\begin{center}
-\begin{longtable}{lll}
-\hline
-Step & Description & Criteria\\
-\hline
-\endhead\n`)
-
-										for _, t := range ts.Out {
-
-											step := t.Get("values.list")
-
-											for i, col := range step.Out {
-												if i > 0 {
-													buffer.WriteString(" & ")
-												}
-												cell := col.GetAt(1).ThisString()
-												cell = strings.Replace(cell, "attachment:", attachmentDir, -1)
-												// Prepare string for TeX
-												buffer.WriteString(cell)
-											}
-											buffer.WriteString("\\\n")
-										}
-										buffer.WriteString("\\end{longtable}\n\\end{center}\n")
-									}
-
-								} else if htag[0] == 'h' && len(htag) == 2 {
-									hd := ""
-									switch htag[1] {
-									case '2':
-										hd = "\\section{"
-									case '3':
-										hd = "\\subsection{"
-									case '4':
-										hd = "\\subsubsection{"
-									case '5':
-										hd = "\\paragraph{"
-									}
-									hd += item.Tree.Get("title").String() + "}\n"
-									buffer.WriteString(hd)
-								}
-							}
-						}
-					} else {
-						// Analyze style info...
-						/*
-							buffer.WriteString(" " + attr)
-							buffer.WriteString("=\"" + val + "\" ")
-						*/
-					}
-					if !more {
-						break
-					}
-				}
-			}
-			if !closed {
-				// buffer.WriteString(">")
-			}
-
-		case html.EndTagToken:
-			/*
-				b, _ := z.TagName()
-				buffer.WriteString("</")
-				buffer.Write(b)
-				buffer.WriteString(">\n") */
 		case html.TextToken:
 			buffer.Write(z.Text())
 		}
