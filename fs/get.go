@@ -211,9 +211,25 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 
 		default:
 
-			// A file (with no known structure). No more parts can be handled.
+			log.Println("Get file", path, fe.Typ)
+
 			if i < len(parts)-1 {
-				return nil, errors.New("file found but can not navigate into it")
+				if fe.Typ != "text/markdown" {
+					// A file (with no known structure). No more parts can be handled.
+					return nil, errors.New("file found but can not navigate into it")
+				}
+				// Markdown can be dived in!
+				fe.Content, _ = fs.File(path, rev)
+				fe.Param = params
+				fe.Name = path
+				fe.Prepare()
+				fe.Typ = "data/ogdl"
+
+				// TODO navidate to remaining path.
+				fe.Data = fe.Doc.Data()
+				println(">>>\n", fe.Data.Show())
+				return fe, nil
+
 			}
 
 			fe.Content, _ = fs.File(path, rev)

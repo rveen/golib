@@ -6,11 +6,10 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/rveen/golib/document"
 	"github.com/rveen/golib/jupyter"
-
 	"github.com/rveen/markdown"
 	"github.com/rveen/markdown/parser"
-
 	"github.com/rveen/ogdl"
 )
 
@@ -29,6 +28,7 @@ type FileEntry struct {
 	Param    map[string]string
 	Mode     os.FileMode
 	Dir      []os.FileInfo
+	Doc      *document.Document
 }
 
 var isTemplate = map[string]bool{
@@ -54,6 +54,16 @@ func (f *FileEntry) Prepare() {
 	if isTemplate[ext] {
 		f.Template = ogdl.NewTemplate(string(f.Content))
 		f.Typ = "t"
+
+	} else if ext == ".mdp" {
+
+		doc, _ := document.New(string(f.Content))
+		f.Content = []byte(doc.Html())
+
+		f.Template = ogdl.NewTemplate(string(f.Content))
+		f.Mime = "text/html"
+		f.Typ = "m"
+		f.Doc = doc
 
 	} else if ext == ".md" {
 		// Process markdown
