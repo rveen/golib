@@ -58,14 +58,13 @@ func TestCode(t *testing.T) {
 	g, _ := New("Hola\n\n```go\nEsto es código\n`\n")
 	fmt.Println(g.Show())
 }
-*/
+
 func TestHeader(t *testing.T) {
 	doc, _ := New("# Requirements \n## Functional requirements {#functional}\n")
 
 	fmt.Println(doc.Data().Show())
 }
 
-/*
 func TestList(t *testing.T) {
 	doc, _ := New("- item 1\n- item 2 {#i2}\n  - item 2.1\n- item 3")
 
@@ -82,6 +81,7 @@ func TestTable_A(t *testing.T) {
 	}
 }
 
+*/
 func TestTable_B(t *testing.T) {
 	// Table with first row as header
 	doc, _ := New("| Version | Date | Type |\n|---|---|\n| 1 | 2021 | X |\n| 2 | 2023 | Y |\n")
@@ -95,6 +95,7 @@ func TestTable_B(t *testing.T) {
 
 }
 
+/*
 func TestTable_C(t *testing.T) {
 	// Table with first column as header
 	g, _ := New("|| Version | Date | Type |\n| 1 | 2021 | X |\n| 2 | 2023 | Y |\n")

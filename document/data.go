@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/rveen/golib/parser/eventhandler"
-	"github.com/rveen/ogdl"
 )
 
 func (doc *Document) listToData(eh *eventhandler.SimpleEventHandler) {
@@ -52,7 +51,16 @@ func (doc *Document) headerToData(eh *eventhandler.SimpleEventHandler) {
 	eh.Inc()
 }
 
-func (doc *Document) tableToData(g *ogdl.Graph) {
+//  | a | b | c |
+//  |---|---|---|
+//  | 1 | 2 | 3 |
+//  | 8 | 9 | 0 |
+//
+//  a
+//    1
+//    8
+
+func (doc *Document) tableToData(eh *eventhandler.SimpleEventHandler) {
 
 	hcol := false
 	hrow := false
@@ -69,50 +77,50 @@ func (doc *Document) tableToData(g *ogdl.Graph) {
 			hcol = true
 		}
 	}
-	/*
 
+	if !hcol && !hrow {
+		return
+	}
 
-		// Go through the rows. If hrow is true, first row is header
-		row := 0
+	// Go through the rows. If hrow is true, first row is header
+	row := 0
+	for {
+		text, n := doc.stream.Item(doc.ix)
+		if n < 1 {
+			break
+		}
+		doc.ix++
+
+		// Each tr has rows at level 2
+		if text != "!tr" {
+			continue
+		}
+
+		col := 0
 		for {
-			text, n := doc.stream.Item(doc.ix)
-			if n < 1 {
+			text, n = doc.stream.Item(doc.ix)
+			if n < 2 {
 				break
 			}
 			doc.ix++
 
-			// Each tr has rows at level 2
-			if text != "!tr" {
+			if n == 3 {
+				eh.Add(text)
+				eh.Inc()
 				continue
 			}
 
-			sb.WriteString("<tr>\n")
+			if (hrow && row == 0) || (hcol && col == 0) {
 
-			col := 0
-			for {
-				text, n = doc.stream.Item(doc.ix)
-				if n < 2 {
-					break
-				}
-				doc.ix++
-				if n > 2 {
-					continue
-				}
-				if (hrow && row == 0) || (hcol && col == 0) {
-					sb.WriteString("<th>")
-					sb.WriteString(InLine(text))
-					sb.WriteString("</th>")
-				} else {
-					sb.WriteString("<td>")
-					sb.WriteString(InLine(text))
-					sb.WriteString("</td>")
-				}
-				col++
+			} else {
+
 			}
+			col++
 
-			sb.WriteString("</tr>\n")
-			row++
+			eh.Dec()
 		}
 
-		sb.WriteString("</table>\n")*/
+		row++
+	}
+
 }

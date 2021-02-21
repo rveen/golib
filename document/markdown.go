@@ -221,7 +221,8 @@ func Table(p *parser.Parser) {
 	tableH := false
 
 	var header []string
-	n := 0
+
+	row := 0
 
 	for {
 		if p.PeekByte() != '|' {
@@ -252,14 +253,14 @@ func Table(p *parser.Parser) {
 			ff[i] = strings.TrimSpace(f)
 		}
 
-		switch n {
+		switch row {
 		case 0:
 			header = ff
 		case 1:
 			p.Emit("!tr")
 			p.Inc()
-			for i, f := range header {
-				if i == 0 && tableV {
+			for _, f := range header {
+				if tableV || tableH {
 					k, s := getKey(f)
 					p.Emit(s)
 					p.Inc()
@@ -289,7 +290,7 @@ func Table(p *parser.Parser) {
 			p.Dec()
 		}
 
-		n++
+		row++
 	}
 	if tableV {
 		p.Emit("!hcol")
