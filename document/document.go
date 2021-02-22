@@ -84,6 +84,8 @@ func (doc *Document) Data() *ogdl.Graph {
 			doc.headerToData(eh)
 		case "!p":
 			doc.textToData(eh)
+		case "!tb":
+			doc.tableToData(eh)
 		}
 	}
 

@@ -81,7 +81,6 @@ func TestTable_A(t *testing.T) {
 	}
 }
 
-*/
 func TestTable_B(t *testing.T) {
 	// Table with first row as header
 	doc, _ := New("| Version | Date | Type |\n|---|---|\n| 1 | 2021 | X |\n| 2 | 2023 | Y |\n")
@@ -95,14 +94,20 @@ func TestTable_B(t *testing.T) {
 
 }
 
-/*
+*/
 func TestTable_C(t *testing.T) {
 	// Table with first column as header
-	g, _ := New("|| Version | Date | Type |\n| 1 | 2021 | X |\n| 2 | 2023 | Y |\n")
+	doc, _ := New("|| Version | 1 | 2 |\n| Date | 2021 | 2022 |\n| Type | X | Y |\n")
 
-	fmt.Println(g.Show())
+	for i := 0; i < doc.stream.Len(); i++ {
+		s, n := doc.stream.Item(i)
+		fmt.Println(n, s)
+	}
+
+	fmt.Println(doc.Data().Show())
 }
 
+/*
 func TestTable_D(t *testing.T) {
 	// Table with first row and column as header
 	g, _ := New("|| Version | Date | Type |\n|---|---|\n| 1 | 2021 | X |\n| 2 | 2023 | Y |\n")

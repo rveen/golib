@@ -65,6 +65,9 @@ func (doc *Document) tableToData(eh *eventhandler.SimpleEventHandler) {
 	hcol := false
 	hrow := false
 
+	nrows := 0
+	ncols := 0
+
 	// What type of table is it
 	for i := doc.ix; i < doc.stream.Len(); i++ {
 		s, n := doc.stream.Item(i)
@@ -76,11 +79,16 @@ func (doc *Document) tableToData(eh *eventhandler.SimpleEventHandler) {
 		} else if s == "!hcol" {
 			hcol = true
 		}
+		if s == "!tr" {
+			nrows++
+		}
 	}
 
 	if !hcol && !hrow {
 		return
 	}
+
+	table := [][]string{}
 
 	// Go through the rows. If hrow is true, first row is header
 	row := 0
@@ -96,31 +104,53 @@ func (doc *Document) tableToData(eh *eventhandler.SimpleEventHandler) {
 			continue
 		}
 
+		table = append(table, []string{})
+
 		col := 0
 		for {
 			text, n = doc.stream.Item(doc.ix)
 			if n < 2 {
 				break
 			}
-			doc.ix++
 
-			if n == 3 {
-				eh.Add(text)
-				eh.Inc()
+			if ((hrow && row == 0) || (hcol && col == 0)) && n == 2 {
+				doc.ix++
+				text, n = doc.stream.Item(doc.ix)
+			} else if n == 3 {
+				doc.ix++
 				continue
 			}
-
-			if (hrow && row == 0) || (hcol && col == 0) {
-
-			} else {
-
-			}
+			table[row] = append(table[row], text)
 			col++
-
-			eh.Dec()
+			doc.ix++
 		}
-
+		if row == 0 {
+			ncols = col
+		}
 		row++
 	}
 
+	println(ncols, nrows)
+
+	if hrow && !hcol {
+		for i := 0; i < ncols; i++ {
+			eh.Add(table[0][i])
+			eh.Inc()
+			for j := 1; j < nrows; j++ {
+				eh.Add(table[j][i])
+			}
+			eh.Dec()
+		}
+	} else if !hrow && hcol {
+		for i := 0; i < nrows; i++ {
+			eh.Add(table[i][0])
+			eh.Inc()
+			for j := 1; j < ncols; j++ {
+				eh.Add(table[i][j])
+			}
+			eh.Dec()
+		}
+	} else {
+
+	}
 }
