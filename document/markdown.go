@@ -243,6 +243,8 @@ func Table(p *parser.Parser) {
 			continue
 		}
 
+		s = strings.TrimSpace(s)
+
 		// Clean the last | because of strings.Split behavior
 		if s[len(s)-1] == '|' {
 			s = s[:len(s)-1]

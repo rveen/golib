@@ -130,9 +130,8 @@ func (doc *Document) tableToData(eh *eventhandler.SimpleEventHandler) {
 		row++
 	}
 
-	println(ncols, nrows)
-
 	if hrow && !hcol {
+		// Header is the first row, and makes up the keys
 		for i := 0; i < ncols; i++ {
 			eh.Add(table[0][i])
 			eh.Inc()
@@ -142,6 +141,7 @@ func (doc *Document) tableToData(eh *eventhandler.SimpleEventHandler) {
 			eh.Dec()
 		}
 	} else if !hrow && hcol {
+		// Header is the first columns, and makes up the keys
 		for i := 0; i < nrows; i++ {
 			eh.Add(table[i][0])
 			eh.Inc()
@@ -151,6 +151,23 @@ func (doc *Document) tableToData(eh *eventhandler.SimpleEventHandler) {
 			eh.Dec()
 		}
 	} else {
+		// Keys are in first row and first column
+		// row 0, col 0 is main key
+		eh.Add(table[0][0])
+		eh.Inc()
 
+		for i := 1; i < nrows; i++ {
+			eh.Add(table[i][0])
+			eh.Inc()
+			for j := 1; j < ncols; j++ {
+				eh.Add(table[0][j])
+				eh.Inc()
+				eh.Add(table[i][j])
+				eh.Dec()
+			}
+			eh.Dec()
+		}
+
+		eh.Dec()
 	}
 }

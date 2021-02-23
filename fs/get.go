@@ -211,14 +211,16 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 
 		default:
 
-			log.Println("Get file", path, fe.Typ)
+			log.Println("Get file", path, fe.Typ, i, len(parts))
 
 			if i < len(parts)-1 {
 				if fe.Typ != "text/markdown" {
 					// A file (with no known structure). No more parts can be handled.
 					return nil, errors.New("file found but can not navigate into it")
 				}
+
 				// Markdown can be dived in!
+
 				fe.Content, _ = fs.File(path, rev)
 				fe.Param = params
 				fe.Name = path
@@ -227,9 +229,20 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 
 				// TODO navidate to remaining path.
 				fe.Data = fe.Doc.Data()
-				println(">>>\n", fe.Data.Show())
-				return fe, nil
 
+				// Read the file and process the remaining part of the path
+				dpath := ""
+				for i++; i < len(parts); i++ {
+					dpath += "." + parts[i]
+				}
+				dpath = dpath[1:]
+
+				log.Printf("path within MD [%s]\n", dpath)
+
+				if dpath != "" && dpath != "_" {
+					fe.Data = fe.Data.Get(dpath)
+				}
+				return fe, nil
 			}
 
 			fe.Content, _ = fs.File(path, rev)
