@@ -2,7 +2,9 @@
 // specifying paths in the file system, it returns directories, files and part of files
 // (specific types of files) that correspond to that path. The particularity of this
 // package is that it allows navigation into either conventional or versioned file
-// systems (such as Subversion or Git), and into data files (only OGDL at the moment).
+// systems (Subversion at the moment), data files (OGDL at the moment) and markdown
+// document.
+//
 // Use of file extensions is optional (if the file name is unique).
 //
 // For now this is a read-only implementation. The content of a path is returned if found,
@@ -65,9 +67,8 @@
 //
 // Revision list
 //
-// How to obtain the log of a path and use it in a template.
+// Obtained by ending the path with @.
 //
-//   g := fs.Log(path)
 package fs
 
 import (

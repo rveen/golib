@@ -1,5 +1,8 @@
-// A markdown processor. Converts markdown to OGDL, that may be rendered later
-// as HTML or Latex/Context
+// A markdown processor. Converts markdown to an internal format that may be
+// rendered later as HTML or treated as data
+//
+// The markdown does follow mostly the de-facto rules, but not all.
+//
 package document
 
 import (
@@ -16,6 +19,7 @@ type Document struct {
 	ix     int
 }
 
+// New parses a markdown+ text string and returnes a Document object.
 func New(s string) (*Document, error) {
 
 	doc := &Document{}
@@ -23,16 +27,18 @@ func New(s string) (*Document, error) {
 	doc.stream = eventhandler.New()
 	p := parser.New([]byte(s), doc.stream)
 
-	for Block(p) {
+	for block(p) {
 	}
 
 	return doc, nil
 }
 
+// Graph returns the event stream produced by the parser as a Graph.
 func (doc *Document) Graph() *ogdl.Graph {
 	return doc.stream.Graph()
 }
 
+// Html returnes the Document in HTML format
 func (doc *Document) Html() string {
 
 	var sb strings.Builder
@@ -65,6 +71,12 @@ func (doc *Document) Html() string {
 	return sb.String()
 }
 
+// Part returns the part of the document indicated by the given path.
+func (doc *Document) Part(path string) *Document {
+	return nil
+}
+
+// Data returns the Document as OGDL data
 func (doc *Document) Data() *ogdl.Graph {
 
 	eh := eventhandler.New()

@@ -14,22 +14,17 @@
 package svnfs
 
 import (
-	"bytes"
-	"encoding/xml"
 	"log"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/rveen/golib/fs/types"
 
 	"github.com/rveen/ogdl"
-	"golang.org/x/text/runes"
-	"golang.org/x/text/transform"
-	"golang.org/x/text/unicode/norm"
+	"github.com/rveen/ogdl/io/gxml"
 )
 
 type fileSystem struct {
@@ -120,7 +115,7 @@ func (fs *fileSystem) Log(path, rev string) (*ogdl.Graph, error) {
 		return nil, err
 	}
 
-	g := xml2graph(b)
+	g := gxml.FromXML(b)
 
 	return g, nil
 }
@@ -162,7 +157,7 @@ func (fs *fileSystem) Revisions(path, rev string) (*ogdl.Graph, error) {
 		rev, _ := n.GetString("'@'.revision")
 
 		b, err = exec.Command("svn", "info", "--xml", "-r", rev, "file:///"+fs.root+"/"+path).Output()
-		m := xml2graph(b)
+		m := gxml.FromXML(b)
 		rel := m.Get("info.entry.'relative-url'").String()
 		if rel[0] == '^' {
 			rel = rel[1:]
@@ -406,7 +401,7 @@ func (fs *fileSystem) info(path, rev string) (*types.FileEntry, error) {
 		return nil, err
 	}
 
-	g := xml2graph(b)
+	g := gxml.FromXML(b)
 
 	fe := &types.FileEntry{}
 	fe.Typ = g.Get("info.entry.'@'.kind").String()
@@ -430,7 +425,7 @@ func (fs *fileSystem) Dir(path, rev string) ([]*types.FileEntry, error) {
 		return nil, err
 	}
 
-	g := xml2graph(b)
+	g := gxml.FromXML(b)
 	g = g.Get("lists.list")
 
 	var dir []*types.FileEntry
@@ -452,75 +447,3 @@ func (fs *fileSystem) Dir(path, rev string) ([]*types.FileEntry, error) {
 
 	return dir, nil
 }
-
-func xml2graph(b []byte) *ogdl.Graph {
-
-	decoder := xml.NewDecoder(bytes.NewReader(b))
-
-	g := ogdl.New(nil)
-	var key string
-	level := -1
-
-	att := true
-
-	var stack []*ogdl.Graph
-	stack = append(stack, g)
-
-	tr := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
-
-	for {
-		// Read tokens from the XML document in a stream.
-		t, _ := decoder.Token()
-		if t == nil {
-			break
-		}
-		// Inspect the type of the token just read.
-		switch se := t.(type) {
-
-		case xml.StartElement:
-			level++
-
-			key = se.Name.Local
-			// No accents in key
-			key, _, _ = transform.String(tr, key)
-
-			n := stack[len(stack)-1].Add(key)
-			// push
-			stack = append(stack, n)
-			if att && len(se.Attr) != 0 {
-				a := n.Add("@")
-				for _, at := range se.Attr {
-					a.Add(at.Name.Local).Add(at.Value)
-				}
-			}
-
-		case xml.CharData:
-
-			val := strings.TrimSpace(string(se))
-			if len(val) > 0 {
-				stack[len(stack)-1].Add(val)
-			}
-
-		case xml.EndElement:
-			level--
-			// pop
-
-			stack = stack[:len(stack)-1]
-
-		}
-	}
-
-	return g
-}
-
-/*
-func getRev(path string) (string, string) {
-
-	i := strings.LastIndex(path, "@")
-	if i == -1 {
-		return path, "HEAD"
-	}
-	return path[0:i], path[i+1:]
-
-}
-*/

@@ -26,7 +26,7 @@ func (doc *Document) textToData(eh *eventhandler.SimpleEventHandler) {
 		}
 		doc.ix++
 
-		sb.WriteString(InLine(t))
+		sb.WriteString(inLine(t))
 		sb.WriteByte('\n')
 	}
 

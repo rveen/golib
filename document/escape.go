@@ -10,7 +10,7 @@ import (
 //    \token
 //    \token()
 //    \( )
-func DocEscape(p *ogdl.Parser) bool {
+func docEscape(p *ogdl.Parser) bool {
 	c, _ := p.Rune()
 
 	if c != '\\' {
@@ -49,47 +49,7 @@ func DocEscape(p *ogdl.Parser) bool {
 		}
 	}
 
-	b := OgdlFlow(p)
+	b := ogdlFlow(p)
 	p.Handler().SetLevel(lv)
 	return b
-}
-
-func OgdlFlow(p *ogdl.Parser) bool {
-
-	anything := false
-
-	lv := p.Handler().Level()
-
-	for {
-		if p.End() {
-			break
-		}
-
-		p.WhiteSpace()
-
-		c, _ := p.Byte()
-		if c == ')' {
-			break
-		}
-		if c == ',' {
-			p.Handler().SetLevel(lv)
-			continue
-		}
-		p.UnreadByte()
-
-		b, ok, _ := p.Quoted(0)
-		if !ok {
-			b, ok = p.StringStop([]byte("),"))
-		}
-
-		if ok {
-			p.Handler().Add(b)
-			anything = true
-			p.Handler().Inc()
-			continue
-		}
-	}
-
-	p.Handler().SetLevel(lv)
-	return anything
 }

@@ -9,7 +9,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-func Normalize(s string) string {
+func normalize(s string) string {
 
 	s = strings.TrimSpace(s)
 	if s == "" {

@@ -17,11 +17,10 @@ func (doc *Document) headerToHtml(sb *strings.Builder) {
 	k, _ := doc.stream.Item(doc.ix)
 	doc.ix++
 
-	text = InLine(text)
+	text = inLine(text)
 
 	// TODO What is faster? many sb.WriteString's, Sprintf or this:
-	sb.WriteString("<a name=\"" + k + "\"/>\n")
-	sb.WriteString("<h" + h + ">" + text + "</h" + h + ">\n")
+	sb.WriteString("<h" + h + " id=\"" + k + "\">" + text + "</h" + h + ">\n")
 }
 
 // TODO nested lists
@@ -79,7 +78,7 @@ func (doc *Document) listToHtml(sb *strings.Builder, level int) {
 		// text of item
 		doc.ix++
 		text, _ := doc.stream.Item(doc.ix)
-		text = InLine(text)
+		text = inLine(text)
 		doc.ix++
 		//key is not used
 		doc.ix++
@@ -146,11 +145,11 @@ func (doc *Document) tableToHtml(sb *strings.Builder) {
 			}
 			if (hrow && row == 0) || (hcol && col == 0) {
 				sb.WriteString("<th>")
-				sb.WriteString(InLine(text))
+				sb.WriteString(inLine(text))
 				sb.WriteString("</th>")
 			} else {
 				sb.WriteString("<td>")
-				sb.WriteString(InLine(text))
+				sb.WriteString(inLine(text))
 				sb.WriteString("</td>")
 			}
 			col++
@@ -173,7 +172,7 @@ func (doc *Document) textToHtml(sb *strings.Builder) {
 		}
 		doc.ix++
 
-		sb.WriteString(InLine(t))
+		sb.WriteString(inLine(t))
 	}
 
 	sb.WriteString("</p>\n")

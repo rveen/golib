@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/rveen/golib/document"
-	"github.com/rveen/golib/jupyter"
-	"github.com/rveen/markdown"
-	"github.com/rveen/markdown/parser"
+	// "github.com/rveen/golib/jupyter"
+	// "github.com/rveen/markdown"
+	// "github.com/rveen/markdown/parser"
 	"github.com/rveen/ogdl"
 )
 
@@ -55,7 +55,34 @@ func (f *FileEntry) Prepare() {
 		f.Template = ogdl.NewTemplate(string(f.Content))
 		f.Typ = "t"
 
-	} else if ext == ".mdp" {
+	} else if ext == ".md" {
+
+		// Task check marks to Unicode
+		// TODO move this to the document package
+		for i := 0; i < len(f.Content); i++ {
+
+			if i+3 >= len(f.Content) {
+				break
+			}
+
+			if f.Content[i] == '[' && f.Content[i+2] == ']' {
+				switch f.Content[i+1] {
+				case 'x':
+					f.Content[i+2] = 0x92
+					f.Content[i] = 0xE2
+					f.Content[i+1] = 0x98
+				default:
+					f.Content[i+2] = 0x90
+					f.Content[i] = 0xE2
+					f.Content[i+1] = 0x98
+				case '/':
+					f.Content[i+2] = 0x91
+					f.Content[i] = 0xE2
+					f.Content[i+1] = 0x98
+				}
+				i += 3
+			}
+		}
 
 		doc, _ := document.New(string(f.Content))
 		f.Content = []byte(doc.Html())
@@ -65,7 +92,7 @@ func (f *FileEntry) Prepare() {
 		f.Typ = "m"
 		f.Doc = doc
 
-	} else if ext == ".md" {
+	} /*else if ext == ".md" {
 		// Process markdown
 		//f.content = blackfriday.MarkdownCommon(f.content)
 
@@ -109,5 +136,5 @@ func (f *FileEntry) Prepare() {
 		f.Content, _ = jupyter.ToHTML(g)
 		f.Mime = "text/html"
 		f.Typ = "nb"
-	}
+	} */
 }

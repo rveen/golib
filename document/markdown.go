@@ -36,7 +36,7 @@ var (
 // - style
 //
 
-func Block(p *parser.Parser) bool {
+func block(p *parser.Parser) bool {
 
 	c := p.PeekByte()
 
@@ -44,30 +44,31 @@ func Block(p *parser.Parser) bool {
 	case 0:
 		return false
 	case '#':
-		Header(p)
+		header(p)
 	case '.':
-		Command(p)
+		command(p)
 	case '>':
-		Quote(p)
+		quote(p)
 	case '-':
-		List(p)
+		list(p)
 	case '|':
-		Table(p)
+		table(p)
 	case '`':
-		Code(p)
+		code(p)
 	case '{':
-		Data(p)
+		data(p)
 	default:
-		Text(p, "!p", "")
+		paragraph(p, "!p", "")
 	}
 
 	return true
 }
 
-func InLine(s string) string {
+func inLine(s string) string {
 	s = link.ReplaceAllString(s, "<a href=\"$2\">$1</a>")
 	s = bold.ReplaceAllString(s, "<b>$1</b>")
 	s = italic.ReplaceAllString(s, "<em>$1</em>")
+
 	return s
 }
 
@@ -82,7 +83,7 @@ func InLine(s string) string {
 //
 // The second subnode is the normalized string to be used in the data representation
 //
-func Header(p *parser.Parser) {
+func header(p *parser.Parser) {
 
 	// Read number of !
 	n := 0
@@ -101,7 +102,7 @@ func Header(p *parser.Parser) {
 	}
 	if c != ' ' {
 		// This is not a header but text
-		Text(p, "!p", "!"+string(c))
+		paragraph(p, "!p", "!"+string(c))
 		return
 	}
 
@@ -135,16 +136,16 @@ func getKey(s string) (string, string) {
 		key = s[ii[0]+2 : ii[1]-1]
 		s = s[:ii[0]]
 	} else {
-		key = Normalize(s)
+		key = normalize(s)
 	}
 	return key, strings.TrimSpace(s)
 }
 
-func Quote(p *parser.Parser) {
-	Text(p, "!q", "")
+func quote(p *parser.Parser) {
+	paragraph(p, "!q", "")
 }
 
-func Command(p *parser.Parser) {
+func command(p *parser.Parser) {
 	p.Line()
 }
 
@@ -163,7 +164,7 @@ func Command(p *parser.Parser) {
 // TODO recursive parsing of lists (nested lists can be ul or ol)
 // TODO detect HR (---)
 // TODO include definition lists (- text :: text) <-- not std markdown
-func List(p *parser.Parser) {
+func list(p *parser.Parser) {
 
 	level := 1
 	prevIndent := 0
@@ -212,7 +213,7 @@ func List(p *parser.Parser) {
 // - If ||, first column is key
 // - If separation line is present, first row is key
 //
-func Table(p *parser.Parser) {
+func table(p *parser.Parser) {
 
 	p.Emit("!tb")
 	p.Inc()
@@ -305,7 +306,7 @@ func Table(p *parser.Parser) {
 
 // Code processes ```[lang] entries
 // Read all lines until a line that starts with '`'
-func Code(p *parser.Parser) {
+func code(p *parser.Parser) {
 
 	s := p.Line()
 	// Any syntax specified?
@@ -339,7 +340,7 @@ func Code(p *parser.Parser) {
 
 // Read a paragraph (all characters until a newline followed by a special
 // character, or an empty line).
-func Text(p *parser.Parser, head, pre string) {
+func paragraph(p *parser.Parser, head, pre string) {
 
 	var b []byte
 	start := true
@@ -391,7 +392,7 @@ func isDocSpecial(c rune) bool {
 }
 
 // Data reads all lines as OGDL until } is found
-func Data(p *parser.Parser) {
+func data(p *parser.Parser) {
 
 	// discard first line
 	p.Line()
@@ -413,4 +414,45 @@ func Data(p *parser.Parser) {
 
 	p.Emit(sb.String())
 	p.Dec()
+}
+
+// TODO: put this into the ogdl package (change that package to parser.Parser)
+func ogdlFlow(p *ogdl.Parser) bool {
+
+	anything := false
+
+	lv := p.Handler().Level()
+
+	for {
+		if p.End() {
+			break
+		}
+
+		p.WhiteSpace()
+
+		c, _ := p.Byte()
+		if c == ')' {
+			break
+		}
+		if c == ',' {
+			p.Handler().SetLevel(lv)
+			continue
+		}
+		p.UnreadByte()
+
+		b, ok, _ := p.Quoted(0)
+		if !ok {
+			b, ok = p.StringStop([]byte("),"))
+		}
+
+		if ok {
+			p.Handler().Add(b)
+			anything = true
+			p.Handler().Inc()
+			continue
+		}
+	}
+
+	p.Handler().SetLevel(lv)
+	return anything
 }
