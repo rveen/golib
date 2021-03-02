@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/rveen/golib/parser/eventhandler"
+	"github.com/rveen/golib/eventhandler"
 )
 
 func TestByte(t *testing.T) {

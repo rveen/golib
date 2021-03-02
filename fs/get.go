@@ -239,9 +239,16 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 
 				log.Printf("path within MD [%s]\n", dpath)
 
-				if dpath != "" && dpath != "_" {
+				switch dpath {
+				case "":
+				case "_":
+				case "__":
+					fe.Data = fe.Doc.Graph()
+				default:
 					fe.Data = fe.Data.Get(dpath)
+
 				}
+
 				return fe, nil
 			}
 

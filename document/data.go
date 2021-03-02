@@ -4,10 +4,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rveen/golib/parser/eventhandler"
+	"github.com/rveen/golib/eventhandler"
 )
 
-func (doc *Document) listToData(eh *eventhandler.SimpleEventHandler) {
+func (doc *Document) listToData(eh *eventhandler.EventHandler) {
 
 	eh.Add("-")
 	eh.Inc()
@@ -15,7 +15,7 @@ func (doc *Document) listToData(eh *eventhandler.SimpleEventHandler) {
 	eh.Dec()
 }
 
-func (doc *Document) textToData(eh *eventhandler.SimpleEventHandler) {
+func (doc *Document) textToData(eh *eventhandler.EventHandler) {
 
 	var sb strings.Builder
 
@@ -36,7 +36,7 @@ func (doc *Document) textToData(eh *eventhandler.SimpleEventHandler) {
 	eh.Dec()
 }
 
-func (doc *Document) headerToData(eh *eventhandler.SimpleEventHandler) {
+func (doc *Document) headerToData(eh *eventhandler.EventHandler) {
 
 	level, _ := doc.stream.Item(doc.ix)
 	doc.ix++
@@ -49,6 +49,7 @@ func (doc *Document) headerToData(eh *eventhandler.SimpleEventHandler) {
 	eh.SetLevel(n - 1)
 	eh.Add(key)
 	eh.Inc()
+	eh.Add("_init_" + strconv.Itoa(doc.ix-3))
 }
 
 //  | a | b | c |
@@ -60,7 +61,7 @@ func (doc *Document) headerToData(eh *eventhandler.SimpleEventHandler) {
 //    1
 //    8
 
-func (doc *Document) tableToData(eh *eventhandler.SimpleEventHandler) {
+func (doc *Document) tableToData(eh *eventhandler.EventHandler) {
 
 	hcol := false
 	hrow := false

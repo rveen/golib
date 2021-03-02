@@ -9,13 +9,13 @@ import (
 	// "bytes"
 	"strings"
 
+	"github.com/rveen/golib/eventhandler"
 	"github.com/rveen/golib/parser"
-	"github.com/rveen/golib/parser/eventhandler"
 	"github.com/rveen/ogdl"
 )
 
 type Document struct {
-	stream *eventhandler.SimpleEventHandler
+	stream *eventhandler.EventHandler
 	ix     int
 }
 
