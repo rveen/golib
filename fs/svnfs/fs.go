@@ -24,7 +24,7 @@ import (
 	"github.com/rveen/golib/fs/types"
 
 	"github.com/rveen/ogdl"
-	"github.com/rveen/ogdl/v2/io/gxml"
+	"github.com/rveen/ogdl/io/gxml"
 )
 
 type fileSystem struct {
