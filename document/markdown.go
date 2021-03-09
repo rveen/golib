@@ -138,7 +138,7 @@ func getKey(s string) (string, string) {
 		key = s[ii[0]+2 : ii[1]-1]
 		s = s[:ii[0]]
 	} else {
-		key = normalize(s)
+		key = Normalize(s)
 	}
 	return key, strings.TrimSpace(s)
 }
