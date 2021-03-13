@@ -16,6 +16,7 @@ import (
 
 type Document struct {
 	stream *eventhandler.EventHandler
+	g      *ogdl.Graph
 	ix     int
 }
 
@@ -30,12 +31,40 @@ func New(s string) (*Document, error) {
 	for block(p) {
 	}
 
+	doc.g = doc.stream.Graph()
+
 	return doc, nil
 }
 
 // Graph returns the event stream produced by the parser as a Graph.
 func (doc *Document) Graph() *ogdl.Graph {
-	return doc.stream.Graph()
+	return doc.g
+}
+
+// Html returnes the Document in HTML format
+func (doc *Document) Html2() string {
+
+	var sb strings.Builder
+
+	for _, n := range doc.g.Out {
+
+		s := n.ThisString()
+
+		switch s {
+		case "!pre":
+			codeToHtml(n, &sb)
+		case "!p":
+			textToHtml(n, &sb)
+		case "!h":
+			headerToHtml(n, &sb)
+		case "!ul":
+			listToHtml(n, &sb)
+		case "!tb":
+			doc.tableToHtml(&sb)
+		}
+	}
+
+	return sb.String()
 }
 
 // Html returnes the Document in HTML format
