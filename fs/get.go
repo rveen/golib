@@ -2,7 +2,7 @@ package fs
 
 import (
 	"errors"
-	"log"
+	// "log"
 	"path/filepath"
 	"strings"
 
@@ -50,7 +50,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 		path = "."
 	}
 
-	log.Println("fs.Get", opath, len(parts))
+	// log.Println("fs.Get", opath, len(parts))
 
 	// Start by getting the root dir (either 'dir' or 'svn')
 	dir, err := fs.Info("", "")
@@ -211,7 +211,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 
 		default:
 
-			log.Println("Get file", path, fe.Typ, i, len(parts))
+			// log.Println("Get file", path, fe.Typ, i, len(parts))
 
 			if i < len(parts)-1 {
 				if fe.Typ != "text/markdown" {
@@ -237,7 +237,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 				}
 				dpath = dpath[1:]
 
-				log.Printf("path within MD [%s]\n", dpath)
+				// log.Printf("path within MD [%s]\n", dpath)
 
 				switch dpath {
 				case "":

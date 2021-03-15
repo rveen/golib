@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/rveen/golib/eventhandler"
-	"github.com/rveen/ogdl"
+	//	"github.com/rveen/ogdl"
 )
 
 func (doc *Document) listToData(eh *eventhandler.EventHandler) {
@@ -49,6 +49,7 @@ func (doc *Document) headerToData(eh *eventhandler.EventHandler) {
 	eh.Add("_init_" + strconv.Itoa(doc.ix-3))
 }
 
+/*
 func (doc *Document) headerToData2(g *ogdl.Graph) {
 
 	level, _ := doc.stream.Item(doc.ix)
@@ -63,7 +64,7 @@ func (doc *Document) headerToData2(g *ogdl.Graph) {
 	eh.Add(key)
 	eh.Inc()
 	eh.Add("_init_" + strconv.Itoa(doc.ix-3))
-}
+}*/
 
 //  | a | b | c |
 //  |---|---|---|

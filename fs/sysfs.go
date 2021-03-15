@@ -73,7 +73,6 @@ package fs
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -252,8 +251,6 @@ func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) error {
 
 		// Index files overwrite readme's
 		if strings.HasPrefix(name, "index.") {
-
-			fmt.Println("Index", name)
 
 			b, _ := fs.File(path+"/"+name, rev)
 			d.Content = b

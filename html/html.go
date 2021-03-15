@@ -188,8 +188,6 @@ func (h Html) ChecklistPending(s string) int {
 
 func (h Html) Breadcrumb(url string) string {
 
-	println("breadcrumb ", url)
-
 	r := "<span class='bc_sep1'>/</span>"
 	p := ""
 
