@@ -5,14 +5,11 @@ import (
 	"strings"
 
 	"github.com/rveen/golib/eventhandler"
+	"github.com/rveen/ogdl"
 )
 
 func (doc *Document) listToData(eh *eventhandler.EventHandler) {
 
-	eh.Add("-")
-	eh.Inc()
-
-	eh.Dec()
 }
 
 func (doc *Document) textToData(eh *eventhandler.EventHandler) {
@@ -37,6 +34,22 @@ func (doc *Document) textToData(eh *eventhandler.EventHandler) {
 }
 
 func (doc *Document) headerToData(eh *eventhandler.EventHandler) {
+
+	level, _ := doc.stream.Item(doc.ix)
+	doc.ix++
+	//text, _ := doc.stream.Item(doc.ix)
+	doc.ix++
+	key, _ := doc.stream.Item(doc.ix)
+	doc.ix++
+
+	n, _ := strconv.Atoi(level)
+	eh.SetLevel(n - 1)
+	eh.Add(key)
+	eh.Inc()
+	eh.Add("_init_" + strconv.Itoa(doc.ix-3))
+}
+
+func (doc *Document) headerToData2(g *ogdl.Graph) {
 
 	level, _ := doc.stream.Item(doc.ix)
 	doc.ix++

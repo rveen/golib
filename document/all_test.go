@@ -1,9 +1,9 @@
 package document
 
 import (
-	"fmt"
 	"testing"
 	//"github.com/rveen/ogdl"
+	"fmt"
 )
 
 /*
@@ -106,7 +106,7 @@ func TestTable_C(t *testing.T) {
 
 	fmt.Println(doc.Data().Show())
 }
-*/
+
 func TestTable_D(t *testing.T) {
 	// Table with first row and column as header
 	doc, _ := New("|| Parameter | Min | Max |\n|---|---|\n| Vbat | 6 | 18 |\n| Idd | 0.03 | 0.1 |\n")
@@ -119,9 +119,6 @@ func TestTable_D(t *testing.T) {
 	fmt.Println(doc.Data().Show())
 }
 
-/*
-
-
 func TestText(t *testing.T) {
 	doc, _ := New("hola\ncaracola\n y hola y hola\n\nOtro párrafo")
 
@@ -129,3 +126,26 @@ func TestText(t *testing.T) {
 
 }
 */
+
+func BenchmarkDocNew(b *testing.B) {
+
+	for i := 0; i < b.N; i++ {
+		doc, _ := New("|| Parameter | Min | Max |\n|---|---|\n| Vbat | 6 | 18 |\n| Idd | 0.03 | 0.1 |\n")
+		doc.Html()
+	}
+}
+
+func BenchmarkDocNew2(b *testing.B) {
+
+	for i := 0; i < b.N; i++ {
+		doc, _ := New("|| Parameter | Min | Max |\n|---|---|\n| Vbat | 6 | 18 |\n| Idd | 0.03 | 0.1 |\n")
+		doc.Html2()
+	}
+}
+
+func TestHtml2(t *testing.T) {
+
+	doc, _ := New("- item 1\n-item 2\n - item 2.1\n- item 3")
+	s := doc.Html2()
+	fmt.Println(s)
+}

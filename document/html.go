@@ -3,6 +3,8 @@ package document
 import (
 	"strconv"
 	"strings"
+
+	"github.com/rveen/ogdl"
 )
 
 // level
@@ -21,6 +23,25 @@ func (doc *Document) headerToHtml(sb *strings.Builder) {
 
 	// TODO What is faster? many sb.WriteString's, Sprintf or this:
 	sb.WriteString("<h" + h + " id=\"" + k + "\">" + text + "</h" + h + ">\n")
+}
+
+func headerToHtml(n *ogdl.Graph, sb *strings.Builder) {
+
+	if n.Len() < 2 {
+		return
+	}
+
+	h := n.GetAt(0).ThisString()
+	text := n.GetAt(1).ThisString()
+	text = inLine(text)
+
+	if n.Len() > 2 {
+		key := n.GetAt(2).ThisString()
+		sb.WriteString("<h" + h + " id=\"" + key + "\">" + text + "</h" + h + ">\n")
+	} else {
+		// TODO What is faster? many sb.WriteString's, Sprintf or this:
+		sb.WriteString("<h" + h + "\">" + text + "</h" + h + ">\n")
+	}
 }
 
 // TODO nested lists
@@ -87,6 +108,40 @@ func (doc *Document) listToHtml(sb *strings.Builder, level int) {
 	}
 
 	sb.WriteString("</ul>\n")
+}
+
+func listToHtml(n *ogdl.Graph, sb *strings.Builder) {
+
+	sb.WriteString("<ul>\n")
+
+	level := 1
+
+	for _, li := range n.Out {
+		if n.Len() < 2 {
+			continue
+		}
+		lv, _ := strconv.Atoi(li.GetAt(0).ThisString())
+		text := li.GetAt(1).ThisString()
+		text = inLine(text)
+
+		if lv > level {
+			sb.WriteString("<ul>\n")
+		} else if lv < level {
+			sb.WriteString("</ul>\n")
+		}
+
+		sb.WriteString("<li>" + text + "</li>\n")
+
+		level = lv
+	}
+
+	for {
+		sb.WriteString("</ul>\n")
+		level--
+		if level < 1 {
+			break
+		}
+	}
 }
 
 func (doc *Document) tableToHtml(sb *strings.Builder) {
@@ -162,6 +217,66 @@ func (doc *Document) tableToHtml(sb *strings.Builder) {
 	sb.WriteString("</table>\n")
 }
 
+func tableToHtml(n *ogdl.Graph, sb *strings.Builder) {
+
+	hcol := false
+	hrow := false
+
+	// What type of table is it
+	for _, g := range n.Out {
+		s := g.ThisString()
+		if s == "!hrow" {
+			hrow = true
+		} else if s == "!hcol" {
+			hcol = true
+		}
+	}
+
+	if hcol && hrow {
+		sb.WriteString("<table class='hboth'>\n")
+	} else if hcol {
+		sb.WriteString("<table class='hcol'>\n")
+	} else if hrow {
+		sb.WriteString("<table class='hrow'>\n")
+	} else {
+		sb.WriteString("<table>\n")
+	}
+
+	// Go through the rows. If hrow is true, first row is header
+	row := 0
+	for _, g := range n.Out {
+		text := g.ThisString()
+
+		// Each tr has rows at level 2
+		if text != "!tr" {
+			continue
+		}
+
+		sb.WriteString("<tr>\n")
+
+		col := 0
+		for _, r := range g.Out {
+			text := r.ThisString()
+
+			if (hrow && row == 0) || (hcol && col == 0) {
+				sb.WriteString("<th>")
+				sb.WriteString(inLine(text))
+				sb.WriteString("</th>")
+			} else {
+				sb.WriteString("<td>")
+				sb.WriteString(inLine(text))
+				sb.WriteString("</td>")
+			}
+			col++
+		}
+
+		sb.WriteString("</tr>\n")
+		row++
+	}
+
+	sb.WriteString("</table>\n")
+}
+
 func (doc *Document) textToHtml(sb *strings.Builder) {
 
 	sb.WriteString("<p>")
@@ -176,6 +291,25 @@ func (doc *Document) textToHtml(sb *strings.Builder) {
 	}
 
 	sb.WriteString("</p>\n")
+}
+
+func textToHtml(n *ogdl.Graph, sb *strings.Builder) {
+
+	sb.WriteString("<p>")
+	for _, g := range n.Out {
+		sb.WriteString(inLine(g.ThisString()))
+	}
+	sb.WriteString("</p>\n")
+}
+
+func codeToHtml(n *ogdl.Graph, sb *strings.Builder) {
+
+	sb.WriteString("<pre>")
+	for _, g := range n.Out {
+		sb.WriteString(inLine(g.ThisString()))
+		sb.WriteByte('\n')
+	}
+	sb.WriteString("</pre>\n")
 }
 
 func (doc *Document) codeToHtml(sb *strings.Builder) {
