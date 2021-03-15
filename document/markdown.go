@@ -222,6 +222,7 @@ func table(p *parser.Parser) {
 
 	tableV := false
 	tableH := false
+	doNotNormalize := false
 
 	var header []string
 
@@ -283,11 +284,24 @@ func table(p *parser.Parser) {
 			p.Inc()
 			for i, f := range ff {
 				if i == 0 && tableV {
-					k, s := getKey(f)
-					p.Emit(s)
-					p.Inc()
-					p.Emit(k)
-					p.Dec()
+					if f[0] == '_' {
+						doNotNormalize = true
+						f = f[1:]
+					}
+
+					// TODO do not emit key if == text: adapt data.go
+					if doNotNormalize {
+						p.Emit(f)
+						p.Inc()
+						p.Emit(f)
+						p.Dec()
+					} else {
+						k, s := getKey(f)
+						p.Emit(s)
+						p.Inc()
+						p.Emit(k)
+						p.Dec()
+					}
 				} else {
 					p.Emit(f)
 				}
