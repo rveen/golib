@@ -19,7 +19,6 @@ func Normalize(s string) string {
 	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
 	r, _, _ := transform.String(t, s)
 
-	// r = strings.Map(valid, r)
 	return toLowerCamel(r)
 }
 
