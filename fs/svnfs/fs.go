@@ -29,7 +29,7 @@ import (
 
 type fileSystem struct {
 	root string
-	typ  string
+	// typ  string
 }
 
 func New(root string) *fileSystem {
@@ -83,6 +83,7 @@ func Create(path, ref, user, group string) error {
 	var err error
 
 	if len(ref) != 0 {
+		// TODO: cp is a shell command, not a program
 		err = exec.Command("cp -a", ref, path).Run()
 
 	} else {
@@ -233,7 +234,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 		err := fs.Index(fe, path, rev)
 
 		if err != nil {
-
+			// TODO
 		}
 
 	case "file":

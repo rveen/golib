@@ -225,10 +225,6 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 				fe.Param = params
 				fe.Name = path
 				fe.Prepare()
-				fe.Typ = "data/ogdl"
-
-				// TODO navidate to remaining path.
-				fe.Data = fe.Doc.Data()
 
 				// Read the file and process the remaining part of the path
 				dpath := ""
@@ -237,16 +233,14 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 				}
 				dpath = dpath[1:]
 
-				// log.Printf("path within MD [%s]\n", dpath)
-
-				switch dpath {
-				case "":
-				case "_":
-				case "__":
-					fe.Data = fe.Doc.Graph()
-				default:
-					fe.Data = fe.Data.Get(dpath)
-
+				if dpath == "_" {
+					fe.Typ = "data/ogdl"
+					fe.Data = fe.Doc.Data()
+				} else {
+					fe.Typ = "m"
+					fe.Content = []byte(fe.Doc.Part(dpath).Html())
+					fe.Template = ogdl.NewTemplate(string(fe.Content))
+					fe.Doc = fe.Doc.Part(dpath)
 				}
 
 				return fe, nil
@@ -270,7 +264,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 	err = fs.Index(dir, path, rev)
 
 	if err != nil {
-
+		// TODO
 	}
 
 	dir.Param = params

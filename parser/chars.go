@@ -90,12 +90,14 @@ func isTextChar(c byte) bool {
 
 // IsEndChar returns true for all integers < 32 that are not newline,
 // carriage return or tab.
+/*
 func isEndChar(c byte) bool {
 	return c < 32 && c != '\t' && c != '\n' && c != '\r'
-}
+}*/
 
 // IsEndRune returns true for all integers < 32 that are not newline,
 // carriage return or tab.
+/*
 func isEndRune(c rune) bool {
 	return c < 32 && c != '\t' && c != '\n' && c != '\r'
 }
@@ -108,19 +110,16 @@ func isBreakChar(c byte) bool {
 // IsSpaceChar returns true for space and tab
 func isSpaceChar(c byte) bool {
 	return c == 32 || c == 9
-}
+}*/
 
-// IsTemplateTextChar returns true for all not END chars and not $
+/* IsTemplateTextChar returns true for all not END chars and not $
 func isTemplateTextChar(c byte) bool {
 	return !isEndChar(c) && c != '$'
-}
+}*/
 
 // IsOperatorChar returns true for all operator characters used in OGDL
 // expressions (those parsed by NewExpression).
 func isOperatorChar(c byte) bool {
-	if c < 0 {
-		return false
-	}
 	return bytes.IndexByte([]byte("+-*/%&|!<>=~^"), c) != -1
 }
 

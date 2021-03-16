@@ -7,6 +7,7 @@ package document
 
 import (
 	// "bytes"
+	"strconv"
 	"strings"
 
 	"github.com/rveen/golib/eventhandler"
@@ -42,7 +43,7 @@ func (doc *Document) Graph() *ogdl.Graph {
 }
 
 // Html returnes the Document in HTML format
-func (doc *Document) Html2() string {
+func (doc *Document) Html() string {
 
 	var sb strings.Builder
 
@@ -60,7 +61,7 @@ func (doc *Document) Html2() string {
 		case "!ul":
 			listToHtml(n, &sb)
 		case "!tb":
-			doc.tableToHtml(&sb)
+			tableToHtml(n, &sb)
 		}
 	}
 
@@ -68,7 +69,7 @@ func (doc *Document) Html2() string {
 }
 
 // Html returnes the Document in HTML format
-func (doc *Document) Html() string {
+func (doc *Document) Html2() string {
 
 	var sb strings.Builder
 
@@ -102,7 +103,44 @@ func (doc *Document) Html() string {
 
 // Part returns the part of the document indicated by the given path.
 func (doc *Document) Part(path string) *Document {
-	return nil
+
+	eh := eventhandler.New()
+
+	for i, n := range doc.g.Out {
+
+		s := n.ThisString()
+
+		switch s {
+
+		case "!h":
+			headerToPart(n, eh, i)
+		}
+	}
+
+	parts := eh.Graph()
+	part := parts.Get(path)
+	start := int(part.Get("_start").Int64())
+	level := int(part.Get("_level").Int64())
+	end := doc.g.Len()
+
+	// End is next header with same 'level'
+	for i := start + 1; i < doc.g.Len(); i++ {
+
+		n := doc.g.Out[i]
+		if n.ThisString() != "!h" {
+			continue
+		}
+		lv, _ := strconv.Atoi(n.GetAt(0).ThisString())
+		if lv <= level {
+			end = i
+			break
+		}
+	}
+
+	g := ogdl.New(nil)
+	g.Out = doc.g.Out[start:end]
+
+	return &Document{nil, g, 0}
 }
 
 // Data returns the Document as OGDL data

@@ -40,7 +40,7 @@ func TestRune(t *testing.T) {
 	if c != 'a' || ok == false {
 		t.Error()
 	}
-	c, ok = p.Rune()
+	_, ok = p.Rune()
 	if ok == true {
 		t.Error()
 	}

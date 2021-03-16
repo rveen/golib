@@ -143,9 +143,17 @@ func BenchmarkDocNew2(b *testing.B) {
 	}
 }
 
+/*
 func TestHtml2(t *testing.T) {
 
 	doc, _ := New("- item 1\n-item 2\n - item 2.1\n- item 3")
 	s := doc.Html2()
 	fmt.Println(s)
+}*/
+
+func TestPart(t *testing.T) {
+
+	doc, _ := New("# chapter 1\n## chapter 1.1\n# chapter 2")
+	part := doc.Part("chapter1")
+	fmt.Println(part.Html2())
 }

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/rveen/golib/eventhandler"
-	//	"github.com/rveen/ogdl"
+	"github.com/rveen/ogdl"
 )
 
 func (doc *Document) listToData(eh *eventhandler.EventHandler) {
@@ -46,25 +46,29 @@ func (doc *Document) headerToData(eh *eventhandler.EventHandler) {
 	eh.SetLevel(n - 1)
 	eh.Add(key)
 	eh.Inc()
-	eh.Add("_init_" + strconv.Itoa(doc.ix-3))
 }
 
-/*
-func (doc *Document) headerToData2(g *ogdl.Graph) {
+func headerToPart(n *ogdl.Graph, eh *eventhandler.EventHandler, ix int) {
+	if n.Len() < 3 {
+		return
+	}
 
-	level, _ := doc.stream.Item(doc.ix)
-	doc.ix++
-	//text, _ := doc.stream.Item(doc.ix)
-	doc.ix++
-	key, _ := doc.stream.Item(doc.ix)
-	doc.ix++
+	level := n.GetAt(0).ThisString()
+	key := n.GetAt(2).ThisString()
 
-	n, _ := strconv.Atoi(level)
-	eh.SetLevel(n - 1)
+	lv, _ := strconv.Atoi(level)
+	eh.SetLevel(lv - 1)
 	eh.Add(key)
 	eh.Inc()
-	eh.Add("_init_" + strconv.Itoa(doc.ix-3))
-}*/
+	eh.Add("_start")
+	eh.Inc()
+	eh.Add(strconv.Itoa(ix))
+	eh.Dec()
+	eh.Add("_level")
+	eh.Inc()
+	eh.Add(strconv.Itoa(lv))
+	eh.Dec()
+}
 
 //  | a | b | c |
 //  |---|---|---|

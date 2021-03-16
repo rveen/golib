@@ -37,10 +37,7 @@ var isTemplate = map[string]bool{
 }
 
 func (f *FileEntry) IsDir() bool {
-	if f.Typ == "dir" {
-		return true
-	}
-	return false
+	return f.Typ == "dir"
 }
 
 // Prepare preprocesses some types of files: markdown, templates.
