@@ -70,8 +70,42 @@ func inLine(s string) string {
 	s = link.ReplaceAllString(s, "<a href=\"$2\">$1</a>")
 	s = bold.ReplaceAllString(s, "<b>$1</b>")
 	s = italic.ReplaceAllString(s, "<em>$1</em>")
+	s = taskList(s)
 
 	return s
+}
+
+// TODO overkill string<->[]byte
+// Task check marks to Unicode
+func taskList(s string) string {
+
+	buf := []byte(s)
+
+	for i := 0; i < len(buf); i++ {
+
+		if i+3 >= len(buf) {
+			break
+		}
+
+		if buf[i] == '[' && buf[i+2] == ']' {
+			switch buf[i+1] {
+			case 'x':
+				buf[i+2] = 0x92
+				buf[i] = 0xE2
+				buf[i+1] = 0x98
+			default:
+				buf[i+2] = 0x90
+				buf[i] = 0xE2
+				buf[i+1] = 0x98
+			case '/':
+				buf[i+2] = 0x91
+				buf[i] = 0xE2
+				buf[i+1] = 0x98
+			}
+			i += 3
+		}
+	}
+	return string(buf)
 }
 
 // Header processes lines containing a header

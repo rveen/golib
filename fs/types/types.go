@@ -12,7 +12,6 @@ var typeByExtension = map[string]string{
 	".html": "text/html",
 	".pdf":  "application/pdf",
 	".md":   "text/markdown",
-	".mdp":  "text/markdown",
 
 	".gif":  "image/gif",
 	".png":  "image/png",

@@ -211,8 +211,6 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 
 		default:
 
-			// log.Println("Get file", path, fe.Typ, i, len(parts))
-
 			if i < len(parts)-1 {
 				if fe.Typ != "text/markdown" {
 					// A file (with no known structure). No more parts can be handled.

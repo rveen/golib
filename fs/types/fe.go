@@ -14,7 +14,17 @@ import (
 )
 
 // FileEntry type
-// TODO: interface extension os os.FileInfo?
+// TODO: interface extension of os.FileInfo?
+/*
+type FileInfo interface {
+    Name() string       // base name of the file
+    Size() int64        // length in bytes for regular files; system-dependent for others
+    Mode() FileMode     // file mode bits
+    ModTime() time.Time // modification time
+    IsDir() bool        // abbreviation for Mode().IsDir()
+    Sys() interface{}   // underlying data source (can return nil)
+}
+*/
 type FileEntry struct {
 	Name     string
 	Size     int64
@@ -31,11 +41,14 @@ type FileEntry struct {
 	Doc      *document.Document
 }
 
+// TODO remove template support?
+// Template preprocessing makes sense if caching is used
 var isTemplate = map[string]bool{
 	".htm": true,
 	".txt": true,
 }
 
+// TODO use mode bit
 func (f *FileEntry) IsDir() bool {
 	return f.Typ == "dir"
 }
@@ -54,33 +67,6 @@ func (f *FileEntry) Prepare() {
 
 	} else if ext == ".md" {
 
-		// Task check marks to Unicode
-		// TODO move this to the document package
-		for i := 0; i < len(f.Content); i++ {
-
-			if i+3 >= len(f.Content) {
-				break
-			}
-
-			if f.Content[i] == '[' && f.Content[i+2] == ']' {
-				switch f.Content[i+1] {
-				case 'x':
-					f.Content[i+2] = 0x92
-					f.Content[i] = 0xE2
-					f.Content[i+1] = 0x98
-				default:
-					f.Content[i+2] = 0x90
-					f.Content[i] = 0xE2
-					f.Content[i+1] = 0x98
-				case '/':
-					f.Content[i+2] = 0x91
-					f.Content[i] = 0xE2
-					f.Content[i+1] = 0x98
-				}
-				i += 3
-			}
-		}
-
 		doc, _ := document.New(string(f.Content))
 		f.Content = []byte(doc.Html())
 
@@ -89,49 +75,5 @@ func (f *FileEntry) Prepare() {
 		f.Typ = "m"
 		f.Doc = doc
 
-	} /*else if ext == ".md" {
-		// Process markdown
-		//f.content = blackfriday.MarkdownCommon(f.content)
-
-		// this in init() !!!
-		extensions := parser.CommonExtensions | parser.AutoHeadingIDs
-		p := parser.NewWithExtensions(extensions)
-
-		// Task check marks to Unicode
-		for i := 0; i < len(f.Content); i++ {
-
-			if i+3 >= len(f.Content) {
-				break
-			}
-
-			if f.Content[i] == '[' && f.Content[i+2] == ']' {
-				switch f.Content[i+1] {
-				case 'x':
-					f.Content[i+2] = 0x92
-					f.Content[i] = 0xE2
-					f.Content[i+1] = 0x98
-				default:
-					f.Content[i+2] = 0x90
-					f.Content[i] = 0xE2
-					f.Content[i+1] = 0x98
-				case '/':
-					f.Content[i+2] = 0x91
-					f.Content[i] = 0xE2
-					f.Content[i+1] = 0x98
-				}
-				i += 3
-			}
-		}
-
-		f.Content = markdown.ToHTML(f.Content, p, nil)
-
-		f.Template = ogdl.NewTemplate(string(f.Content))
-		f.Mime = "text/html"
-		f.Typ = "m"
-	} else if ext == ".ipynb" {
-		g, _ := jupyter.FromJupyter(f.Content)
-		f.Content, _ = jupyter.ToHTML(g)
-		f.Mime = "text/html"
-		f.Typ = "nb"
-	} */
+	}
 }

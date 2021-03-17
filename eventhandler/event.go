@@ -8,7 +8,8 @@ package eventhandler
 
 import "github.com/rveen/ogdl"
 
-// SimpleEventHandler receives events and produces a tree.
+// EventHandler receives events and produces a tree.
+// TODO: items []interface{}, more generic
 type EventHandler struct {
 	current int      // Current level
 	max     int      // Max level
