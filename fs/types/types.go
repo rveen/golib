@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+var noExtensionNeeded = []string{
+	".htm", ".html", ".ogdl", ".md",
+}
+
 var typeByExtension = map[string]string{
 	".css":  "text/css",
 	".htm":  "text/html",

@@ -2,6 +2,8 @@ package html
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"path/filepath"
 	"strings"
 
@@ -9,6 +11,12 @@ import (
 )
 
 type Html struct{}
+
+func (h Html) Signature(s string) string {
+	hasher := md5.New()
+	hasher.Write([]byte(s))
+	return hex.EncodeToString(hasher.Sum(nil))
+}
 
 func (h Html) IsImage(p string) bool {
 	p = strings.ToLower(p)

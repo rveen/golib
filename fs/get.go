@@ -22,7 +22,7 @@ import (
 // treated in a special way. When a path element is not found but
 // there is a _token entry, it is followed and the path element set as parameter.
 //
-// Paths that start in an ordinary fie system, can continue to a versioned fs (SVN,
+// Paths that start in an ordinary file system, can continue to a versioned fs (SVN,
 // Git), and then into a data file. Paths that point to a versioned fs can go inside
 // that fs and into a data file. Any other combination will not work.
 //
@@ -58,7 +58,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 		return nil, err
 	}
 
-	switch dir.Typ {
+	switch dir.Type {
 	case "svn":
 		svn := svnfs.New(path)
 		return svn.Get(path, rev)
@@ -91,10 +91,10 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 		fe, err = fs.Info(path, rev)
 		if err != nil {
 			fe = &types.FileEntry{}
-			fe.Typ = ""
+			fe.Type = ""
 		}
 
-		switch fe.Typ {
+		switch fe.Type {
 
 		case "":
 			// Path not found (as is), so:
@@ -212,7 +212,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 		default:
 
 			if i < len(parts)-1 {
-				if fe.Typ != "text/markdown" {
+				if fe.Type != "text/markdown" {
 					// A file (with no known structure). No more parts can be handled.
 					return nil, errors.New("file found but can not navigate into it")
 				}
@@ -232,10 +232,10 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 				dpath = dpath[1:]
 
 				if dpath == "_" {
-					fe.Typ = "data/ogdl"
+					fe.Type = "data/ogdl"
 					fe.Data = fe.Doc.Data()
 				} else {
-					fe.Typ = "m"
+					fe.Type = "m"
 					fe.Content = []byte(fe.Doc.Part(dpath).Html())
 					fe.Template = ogdl.NewTemplate(string(fe.Content))
 					fe.Doc = fe.Doc.Part(dpath)

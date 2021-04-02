@@ -7,9 +7,6 @@ import (
 	"time"
 
 	"github.com/rveen/golib/document"
-	// "github.com/rveen/golib/jupyter"
-	// "github.com/rveen/markdown"
-	// "github.com/rveen/markdown/parser"
 	"github.com/rveen/ogdl"
 )
 
@@ -32,7 +29,7 @@ type FileEntry struct {
 	Template *ogdl.Graph
 	Data     *ogdl.Graph
 	Info     *ogdl.Graph
-	Typ      string
+	Type      string
 	Mime     string
 	Time     time.Time
 	Param    map[string]string
@@ -50,7 +47,7 @@ var isTemplate = map[string]bool{
 
 // TODO use mode bit
 func (f *FileEntry) IsDir() bool {
-	return f.Typ == "dir"
+	return f.Type == "dir"
 }
 
 // Prepare preprocesses some types of files: markdown, templates.
@@ -63,7 +60,7 @@ func (f *FileEntry) Prepare() {
 	// Pre-process template or markdown
 	if isTemplate[ext] {
 		f.Template = ogdl.NewTemplate(string(f.Content))
-		f.Typ = "t"
+		f.Type = "t"
 
 	} else if ext == ".md" {
 
@@ -72,7 +69,7 @@ func (f *FileEntry) Prepare() {
 
 		f.Template = ogdl.NewTemplate(string(f.Content))
 		f.Mime = "text/html"
-		f.Typ = "m"
+		f.Type = "m"
 		f.Doc = doc
 
 	}

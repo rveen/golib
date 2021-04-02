@@ -117,7 +117,7 @@ func listToHtml(n *ogdl.Graph, sb *strings.Builder) {
 	level := 1
 
 	for _, li := range n.Out {
-		if n.Len() < 2 {
+		if li.Len() < 2 {
 			continue
 		}
 		lv, _ := strconv.Atoi(li.GetAt(0).ThisString())

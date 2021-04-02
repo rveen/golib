@@ -214,7 +214,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 
 	if path[len(path)-1] == '@' {
 		fe.Data, err = fs.Revisions(path[:len(path)-1], rev)
-		fe.Typ = "revs"
+		fe.Type = "revs"
 		fe.Name = path
 		return fe, err
 	}
@@ -227,7 +227,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 		fe = fi
 	}
 
-	switch fe.Typ {
+	switch fe.Type {
 
 	case "dir":
 
@@ -328,7 +328,7 @@ func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) error {
 	for _, f := range ff {
 		gd := dir.Add("-")
 		gd.Add("name").Add(f.Name)
-		gd.Add("type").Add(f.Typ)
+		gd.Add("type").Add(f.Type)
 	}
 
 	d.Data = dir
@@ -379,12 +379,10 @@ func (fs *fileSystem) Info(path, rev string) (*types.FileEntry, error) {
 	g := ogdl.FromBytes(b)
 
 	fe := &types.FileEntry{}
-	fe.Typ = g.Get("kind").String()
+	fe.Type = g.Get("kind").String()
 	fe.Name = path
 
-	log.Println("svnfs.Type", fe.Typ)
-
-	if fe.Typ != "dir" {
+	if fe.Type != "dir" {
 		fe.Size = g.Get("size").Int64()
 		fe.Data = g
 	}
@@ -405,11 +403,9 @@ func (fs *fileSystem) info(path, rev string) (*types.FileEntry, error) {
 	g := gxml.FromXML(b)
 
 	fe := &types.FileEntry{}
-	fe.Typ = g.Get("info.entry.'@'.kind").String()
+	fe.Type = g.Get("info.entry.'@'.kind").String()
 
-	log.Println("svnfs.Type", fe.Typ)
-
-	if fe.Typ != "dir" {
+	if fe.Type != "dir" {
 		fe.Size = fs.size(path, rev)
 	}
 
@@ -417,8 +413,6 @@ func (fs *fileSystem) info(path, rev string) (*types.FileEntry, error) {
 }
 
 func (fs *fileSystem) Dir(path, rev string) ([]*types.FileEntry, error) {
-
-	log.Println("svnfs.Dir()", path, rev)
 
 	b, err := exec.Command("svn", "list", "--xml", "-r", rev, "file:///"+fs.root+"/"+path).Output()
 
@@ -442,7 +436,7 @@ func (fs *fileSystem) Dir(path, rev string) ([]*types.FileEntry, error) {
 
 		f.Name = e.Get("name").String()
 		f.Size = e.Get("size").Int64()
-		f.Typ = e.Get("'@'.kind").String()
+		f.Type = e.Get("'@'.kind").String()
 		f.Time, _ = time.Parse(time.RFC3339, e.Get("commit.date").String())
 	}
 

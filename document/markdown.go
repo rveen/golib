@@ -70,6 +70,10 @@ func inLine(s string) string {
 	s = link.ReplaceAllString(s, "<a href=\"$2\">$1</a>")
 	s = bold.ReplaceAllString(s, "<b>$1</b>")
 	s = italic.ReplaceAllString(s, "<em>$1</em>")
+
+	s = strings.ReplaceAll(s, "___?", "<input class='form-control' type='text'/>")
+	s = strings.ReplaceAll(s, "_ok_?", "<input class='btn btn-primary' type='submit' value='Submit'>")
+
 	s = taskList(s)
 
 	return s
@@ -318,7 +322,9 @@ func table(p *parser.Parser) {
 			p.Inc()
 			for i, f := range ff {
 				if i == 0 && tableV {
-					if f[0] == '_' {
+					if f == "" {
+						f = "_"
+					} else if f[0] == '_' {
 						doNotNormalize = true
 						f = f[1:]
 					}

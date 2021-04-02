@@ -142,7 +142,7 @@ func (fs *fileSystem) Info(path, rev string) (*types.FileEntry, error) {
 	fe := &types.FileEntry{}
 
 	if len(path) > 1 && path[len(path)-1] == '@' {
-		fe.Typ = "revs"
+		fe.Type = "revs"
 		return fe, nil
 	}
 
@@ -157,9 +157,9 @@ func (fs *fileSystem) Info(path, rev string) (*types.FileEntry, error) {
 		// return its type by looking at the extension
 		s := types.TypeByExtension(f.Name())
 		if s == "" {
-			fe.Typ = "file"
+			fe.Type = "file"
 		} else {
-			fe.Typ = s
+			fe.Type = s
 		}
 		return fe, nil
 	}
@@ -180,29 +180,29 @@ func (fs *fileSystem) Info(path, rev string) (*types.FileEntry, error) {
 		case "format":
 			sscore++
 			if sscore > 1 {
-				fe.Typ = "svn"
+				fe.Type = "svn"
 				return fe, nil
 			}
 		case "hooks":
 			sscore++
 			gscore++
 			if sscore > 1 {
-				fe.Typ = "svn"
+				fe.Type = "svn"
 				return fe, nil
 			}
 			if gscore > 1 {
-				fe.Typ = "git"
+				fe.Type = "git"
 				return fe, nil
 			}
 		case "HEAD":
 			gscore++
 			if gscore > 1 {
-				fe.Typ = "svn"
+				fe.Type = "svn"
 				return fe, nil
 			}
 		}
 	}
-	fe.Typ = "dir"
+	fe.Type = "dir"
 
 	return fe, err
 }
@@ -231,16 +231,16 @@ func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) error {
 	for _, f := range d.Dir {
 		name := f.Name()
 
-		if name == "index.link" {
-			continue
-		}
+		switch name {
 
-		if name == "index.nolist" {
+		case "index.link":
+			continue
+
+		case "index.nolist":
 			nodir = true
 			continue
-		}
 
-		if name == "index.ogdl" {
+		case "index.ogdl":
 			b, err := fs.File(path+"/index.ogdl", rev)
 			if err != nil {
 				return err
@@ -283,7 +283,7 @@ func (fs *fileSystem) Index(d *types.FileEntry, path, rev string) error {
 		// TODO optimize :-|
 		// SVN and git: do not set mode, because Lstat will not work
 		if (f.IsDir() || f.Mode()&os.ModeSymlink != 0) && name[0] != '_' && name[0] != '.' {
-			// If a symlink, we want the info of the object where it points to
+			// If a symlink, we want the info of the object pointed to
 			if f.Mode()&os.ModeSymlink != 0 {
 				f, err = os.Lstat(path + "/" + name + "/")
 				if err != nil || !f.IsDir() {
