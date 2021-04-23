@@ -266,6 +266,7 @@ func (fs *fileSystem) Get(path, rev string) (*types.FileEntry, error) {
 	}
 
 	dir.Param = params
+	dir.IsDirectory = true
 
 	return dir, nil
 }

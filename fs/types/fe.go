@@ -23,19 +23,20 @@ type FileInfo interface {
 }
 */
 type FileEntry struct {
-	Name     string
-	Size     int64
-	Content  []byte
-	Template *ogdl.Graph
-	Data     *ogdl.Graph
-	Info     *ogdl.Graph
-	Type      string
-	Mime     string
-	Time     time.Time
-	Param    map[string]string
-	Mode     os.FileMode
-	Dir      []os.FileInfo
-	Doc      *document.Document
+	Name        string
+	Size        int64
+	Content     []byte
+	Template    *ogdl.Graph
+	Data        *ogdl.Graph
+	Info        *ogdl.Graph
+	Type        string
+	IsDirectory bool // This is for the original path, not the index.*
+	Mime        string
+	Time        time.Time
+	Param       map[string]string
+	Mode        os.FileMode
+	Dir         []os.FileInfo
+	Doc         *document.Document
 }
 
 // TODO remove template support?
@@ -47,7 +48,7 @@ var isTemplate = map[string]bool{
 
 // TODO use mode bit
 func (f *FileEntry) IsDir() bool {
-	return f.Type == "dir"
+	return f.Type == "dir" || f.IsDirectory
 }
 
 // Prepare preprocesses some types of files: markdown, templates.
