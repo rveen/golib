@@ -90,6 +90,7 @@ type FileSystem interface {
 	Revisions(path, rev string) (*ogdl.Graph, error)
 	Type() string
 	Get(path, rev string) (*types.FileEntry, error)
+	GetRaw(path, rev string) (*types.FileEntry, error)
 }
 
 type fileSystem struct {
