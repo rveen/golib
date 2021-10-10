@@ -52,13 +52,16 @@ func (fn *FNode) get(path string, raw bool) error {
 	fn.N = 0
 	fn.Path = fn.Base
 
+	final := false
+
 	for {
 	nav:
 		err := fn.navigate()
 		if err != nil {
+			log.Println(err.Error())
 			return err
 		}
-		log.Println(" - fn.get.navigate", fn.Path, fn.Type, path)
+		// log.Println(" - fn.get.navigate", fn.Path, fn.Type, path, len(fn.Parts)-fn.N)
 
 		// Case: we reached a 'svn' or 'git' dir. Pass remaining path to new fs.
 		// Look for revisions
@@ -92,6 +95,7 @@ func (fn *FNode) get(path string, raw bool) error {
 			return nil
 
 		case "dir":
+			// log.Println(" - fn.get: dir", fn.Path)
 			err = fn.dir()
 			if err != nil {
 				return err
@@ -99,14 +103,14 @@ func (fn *FNode) get(path string, raw bool) error {
 
 			// If left !=0, there can be an index.ogdl to follow, or a _token
 			// if left == 0, check index / readme
-			if left == 0 {
+			if left == 0 || final {
 				if !fn.index() {
 					return nil
 				}
 				goto again
 			}
 
-			log.Println("going to check for _token, part:", fn.Parts[fn.N])
+			// log.Println("going to check for _token, part:", fn.Parts[fn.N])
 
 			// check _token.
 			// If the option is set and we have parts left to process, then
@@ -121,18 +125,27 @@ func (fn *FNode) get(path string, raw bool) error {
 					continue
 				}
 				if token[0] == '_' {
+					// log.Println(" - token: ", token)
 					if fn.Params == nil {
 						fn.Params = make(map[string]string)
 					}
-					fn.Params[token[1:]] = fn.Parts[fn.N]
-					fn.Parts[fn.N] = token
+
+					if strings.HasSuffix(token, "_end") {
+						// log.Println(" - end token: ", token, fn.remainingPath())
+						fn.Params[token[1:len(token)-4]] = fn.remainingPath()
+						fn.Parts[fn.N] = token
+						final = true
+					} else {
+						fn.Params[token[1:]] = fn.Parts[fn.N]
+						fn.Parts[fn.N] = token
+					}
 					goto nav
 				}
 			}
 			return errors.New("404")
 
 		case "file":
-			if left != 0 {
+			if left != 0 && !final {
 				return errors.New("not navigable")
 			}
 			return fn.file()
@@ -208,11 +221,14 @@ func (fn *FNode) dir() error {
 }
 
 // Navigate up to what exists
-func (fn *FNode) navigate() error {
+func (fn *FNode) navigate_() error {
+
+	// log.Println("navigate: from", fn.Path, fn.Parts)
 
 	for i := fn.N; i < len(fn.Parts); i++ {
 
 		part := fn.Parts[i]
+		// log.Println(" - part:", part, fn.N)
 
 		if part != "" && part[0] == '.' {
 			return errors.New(". not allowed in paths")
@@ -235,6 +251,47 @@ func (fn *FNode) navigate() error {
 		if typ != "dir" {
 			return nil
 		}
+	}
+
+	return nil
+}
+
+// Navigate up to what exists
+func (fn *FNode) navigate() error {
+
+	// log.Println("navigate: from", fn.Path, fn.Parts)
+
+	if fn.Type == "" {
+		fn.Type = fn.info()
+	}
+
+	for {
+		if fn.Type == "" {
+			return nil
+		}
+
+		if fn.N >= len(fn.Parts) {
+			return nil
+		}
+
+		part := fn.Parts[fn.N]
+		// log.Println(" - part:", part, fn.N)
+
+		if part != "" && part[0] == '.' {
+			return errors.New(". not allowed in paths")
+		}
+
+		path := fn.Path
+		fn.Path += "/" + part
+		typ := fn.info()
+
+		if typ == "" {
+			fn.Path = path
+			return nil
+		}
+
+		fn.Type = typ
+		fn.N++
 	}
 
 	return nil

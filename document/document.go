@@ -6,7 +6,6 @@
 package document
 
 import (
-	// "bytes"
 	"strconv"
 	"strings"
 
@@ -37,10 +36,12 @@ func New(s string) (*Document, error) {
 	return doc, nil
 }
 
+/*
 // Graph returns the event stream produced by the parser as a Graph.
 func (doc *Document) Graph() *ogdl.Graph {
 	return doc.g
 }
+*/
 
 // Html returnes the Document in HTML format
 func (doc *Document) Html() string {
@@ -68,6 +69,7 @@ func (doc *Document) Html() string {
 	return sb.String()
 }
 
+/*
 // Html returnes the Document in HTML format
 func (doc *Document) Html2() string {
 
@@ -99,7 +101,7 @@ func (doc *Document) Html2() string {
 	}
 
 	return sb.String()
-}
+}*/
 
 // Part returns the part of the document indicated by the given path.
 func (doc *Document) Part(path string) *Document {
