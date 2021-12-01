@@ -46,7 +46,7 @@ func ast(g *ogdl.Graph) {
 		for i := 0; i < n; i++ {
 			node := g.Out[i]
 
-			if precedence(node.ThisString()) == j {
+			if Precedence(node.ThisString()) == j {
 				e1 = g.Out[i-1]
 				e2 = g.Out[i+1]
 				g.Out = append(g.Out[:i-1], g.Out[i+1:]...)
@@ -62,7 +62,7 @@ func ast(g *ogdl.Graph) {
 // Precedence is same as in Go, except for the missing operators (| << >> & ^ &^)
 //
 // Assignment operators are given the lowest precedence.
-func precedence(s string) int {
+func Precedence(s string) int {
 
 	switch s {
 
