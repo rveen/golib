@@ -4,71 +4,60 @@
 
 package parser
 
-/*
-
-// NewExpression parses an expression in text format (given in the string) to a Graph,
-// in the form of a suitable syntax tree.
-//
-//     expression := expr1 (op2 expr1)*
-//     expr1 := path | constant | op1 path | op1 constant | '(' expr ')' | op1 '(' expr ')'
-//     constant ::= quoted | number
-func NewExpression(s string) *ogdl.Graph {
-	p := NewBytesParser([]byte(s))
-	p.Expression()
-	g := p.Graph()
-	g.This = "!e"
-	g._ast()
-
-	return g
-}
+import (
+	"github.com/rveen/ogdl"
+)
 
 // Ast reorganizes the expression graph in the form of an abstract syntax tree.
-func (g *ogdl.Graph) ast() {
 
-	if g == nil {
-		return
-	}
+func Ast(g *ogdl.Graph) {
+	ast(g)
+	clean(g)
+}
 
-	for _, node := range g.Out {
-		if node.ThisString() == TypeExpression {
-			node._ast()
-		} else {
-			node.ast()
+func clean(g *ogdl.Graph) {
+	for i := 0; i < len(g.Out); i++ {
+		node := g.Out[i]
+		if node.ThisString() == "!g" {
+			if node.Len() == 1 {
+				g.Out[i] = node.Out[0]
+			}
 		}
+		clean(node)
 	}
 }
 
-func (g *Graph) _ast() {
+func ast(g *ogdl.Graph) {
+
+	for _, node := range g.Out {
+		ast(node)
+	}
 
 	if g.Len() < 3 {
 		return
 	}
 
-	for _, node := range g.Out {
-		node.ast()
-	}
+	var e1, e2 *ogdl.Graph
 
-	var e1, e2 *Graph
+	for j := 5; j >= 0; j-- {
 
-	for j := 6; j >= 0; j-- {
+		n := len(g.Out)
 
-		for i := 0; i < len(g.Out); i++ {
-
+		for i := 0; i < n; i++ {
 			node := g.Out[i]
+
 			if precedence(node.ThisString()) == j {
 				e1 = g.Out[i-1]
 				e2 = g.Out[i+1]
-				g.Out = append(g.Out[:i-1], g.Out[i:]...)
-				g.Out = append(g.Out[:i], g.Out[i+1:]...)
+				g.Out = append(g.Out[:i-1], g.Out[i+1:]...)
+				g.Out[i-1] = node
 				node.Add(e1)
 				node.Add(e2)
-				i--
+				n = len(g.Out)
 			}
 		}
 	}
 }
-
-*/
 
 // Precedence is same as in Go, except for the missing operators (| << >> & ^ &^)
 //
