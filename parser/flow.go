@@ -137,6 +137,10 @@ func (p *Parser) Args(dot bool) (bool, error) {
 
 // Expression := expr1 (op2 expr1)*
 //
+//     expression := expr1 (op2 expr1)*
+//     expr1 := path | constant | op1 path | op1 constant | '(' expr ')' | op1 '(' expr ')'
+//     constant ::= quoted | number
+//
 func (p *Parser) Expression() bool {
 
 	if !p.UnaryExpression() {
@@ -165,6 +169,7 @@ func (p *Parser) UnaryExpression() bool {
 
 	c := p.PeekByte()
 
+	// path (variable)
 	if isLetter(rune(c)) {
 		p.ev.Add(TypePath)
 		p.ev.Inc()
@@ -173,12 +178,14 @@ func (p *Parser) UnaryExpression() bool {
 		return true
 	}
 
+	// number (constant)
 	b, ok := p.Number()
 	if ok {
 		p.ev.Add(b)
 		return true
 	}
 
+	// string (constant)
 	b = p.Quoted(0)
 	if b != "" {
 		p.ev.Add(TypeString)
@@ -188,11 +195,13 @@ func (p *Parser) UnaryExpression() bool {
 		return true
 	}
 
+	// unary operator
 	b = p.Operator()
 	if b != "" {
 		p.ev.Add(b)
 	}
 
+	// group
 	if p.PeekByte() == '(' {
 		p.Byte() // Consume the '('
 		p.ev.Add(TypeGroup)
@@ -209,6 +218,7 @@ func (p *Parser) UnaryExpression() bool {
 		return true
 	}
 
+	// ?
 	return p.Path()
 }
 
