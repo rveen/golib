@@ -69,39 +69,35 @@ func (doc *Document) Html() string {
 	return sb.String()
 }
 
-/*
-// Html returnes the Document in HTML format
-func (doc *Document) Html2() string {
+// Html returnes the Document in HTML format, but skip the first header
+func (doc *Document) HtmlNoHeader() string {
 
 	var sb strings.Builder
+	header := false
 
-	doc.ix = 0
+	for _, n := range doc.g.Out {
 
-	for {
-		s, n := doc.stream.Item(doc.ix)
-
-		if n < 0 {
-			break
-		}
-
-		doc.ix++
+		s := n.ThisString()
 
 		switch s {
 		case "!pre":
-			doc.codeToHtml(&sb)
+			codeToHtml(n, &sb)
 		case "!p":
-			doc.textToHtml(&sb)
+			textToHtml(n, &sb)
 		case "!h":
-			doc.headerToHtml(&sb)
+			if header {
+				headerToHtml(n, &sb)
+			}
+			header = true
 		case "!ul":
-			doc.listToHtml(&sb, 1)
+			listToHtml(n, &sb)
 		case "!tb":
-			doc.tableToHtml(&sb)
+			tableToHtml(n, &sb)
 		}
 	}
 
 	return sb.String()
-}*/
+}
 
 // Part returns the part of the document indicated by the given path.
 func (doc *Document) Part(path string) *Document {
@@ -171,4 +167,22 @@ func (doc *Document) Data() *ogdl.Graph {
 	}
 
 	return eh.Graph()
+}
+
+func (doc *Document) Raw() *ogdl.Graph {
+	return doc.g
+}
+
+// Return the first paragraph of this document
+func (doc *Document) Para1() string {
+
+	for _, n := range doc.g.Out {
+
+		s := n.ThisString()
+		if s == "!p" {
+			return n.String()
+		}
+	}
+
+	return ""
 }
