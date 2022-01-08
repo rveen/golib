@@ -11,7 +11,7 @@ import (
 var (
 	anchor = regexp.MustCompile(`{#\w+}`)
 	link   = regexp.MustCompile(`\[(.+)\]\((.+)\)`)
-	img    = regexp.MustCompile(`!\[(.+)\]\((.+)\)`) // TODO add text field
+	img    = regexp.MustCompile(`!\[(.+)\]\( *([^ ]+) *(.*)\)`)
 
 	// Not complete: * should not be followed by space
 	bold   = regexp.MustCompile(`\*\*(.+)\*\*`)
@@ -66,7 +66,7 @@ func block(p *parser.Parser) bool {
 }
 
 func inLine(s string) string {
-	s = img.ReplaceAllString(s, "<img src=\"$2\">")
+	s = img.ReplaceAllString(s, "<img style=\"$3\" src=\"$2\">")
 	s = link.ReplaceAllString(s, "<a href=\"$2\">$1</a>")
 	s = bold.ReplaceAllString(s, "<b>$1</b>")
 	s = italic.ReplaceAllString(s, "<em>$1</em>")
