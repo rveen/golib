@@ -48,6 +48,10 @@ func (doc *Document) Html() string {
 
 	var sb strings.Builder
 
+	if doc.g == nil {
+		return ""
+	}
+
 	for _, n := range doc.g.Out {
 
 		s := n.ThisString()
@@ -117,6 +121,9 @@ func (doc *Document) Part(path string) *Document {
 
 	parts := eh.Graph()
 	part := parts.Get(path)
+	if part == nil || part.Len() == 0 {
+		return &Document{nil, nil, 0}
+	}
 	start := int(part.Get("_start").Int64())
 	level := int(part.Get("_level").Int64())
 	end := doc.g.Len()

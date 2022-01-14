@@ -9,10 +9,18 @@ import (
 
 func main() {
 
-	b, _ := ioutil.ReadFile("doc.mdp")
+	b, err := ioutil.ReadFile("doc.md")
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
 
 	doc, _ := document.New(string(b))
 
-	fmt.Println(doc.Html())
+	fmt.Println(doc.Data().Text())
+
+	fmt.Println("------------")
+
+	fmt.Println(doc.Part("intro.parameter").Html())
 
 }
