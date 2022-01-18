@@ -25,7 +25,7 @@ func (doc *Document) headerToHtml(sb *strings.Builder) {
 	sb.WriteString("<h" + h + " id=\"" + k + "\">" + text + "</h" + h + ">\n")
 }
 
-func headerToHtml(n *ogdl.Graph, sb *strings.Builder) {
+func headerToHtml(n *ogdl.Graph, sb *strings.Builder, hh *headers, urlbase string) {
 
 	if n.Len() < 2 {
 		return
@@ -35,13 +35,36 @@ func headerToHtml(n *ogdl.Graph, sb *strings.Builder) {
 	text := n.GetAt(1).ThisString()
 	text = inLine(text)
 
-	if n.Len() > 2 {
-		key := n.GetAt(2).ThisString()
-		sb.WriteString("<h" + h + " id=\"" + key + "\">" + text + "</h" + h + ">\n")
-	} else {
+	if n.Len() == 2 {
 		// TODO What is faster? many sb.WriteString's, Sprintf or this:
 		sb.WriteString("<h" + h + "\">" + text + "</h" + h + ">\n")
+		return
 	}
+
+	// If hh exists, keep header hierarchy. We do that before creating the
+	// html content so that we can include a HREF.
+	key := n.GetAt(2).ThisString()
+
+	if hh == nil {
+		sb.WriteString("<h" + h + " id=\"" + key + "\">" + text + "</h" + h + ">\n")
+		return
+	}
+
+	level, _ := strconv.Atoi(h)
+	hh.n = level
+	if level >= 10 {
+		return
+	}
+	if len(hh.h) == 0 {
+		hh.h = make([]string, 10)
+	}
+	hh.h[level-1] = key
+	key = ""
+	for i := 0; i < level; i++ {
+		key += hh.h[i] + "/"
+	}
+
+	sb.WriteString("<h" + h + " id=\"" + key + "\"><a href='" + urlbase + "/" + key + "'>" + text + "</a></h" + h + ">\n")
 }
 
 // TODO nested lists

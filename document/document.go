@@ -17,6 +17,7 @@ import (
 type Document struct {
 	stream *eventhandler.EventHandler
 	g      *ogdl.Graph
+	parts  *ogdl.Graph
 	ix     int
 }
 
@@ -36,12 +37,10 @@ func New(s string) (*Document, error) {
 	return doc, nil
 }
 
-/*
-// Graph returns the event stream produced by the parser as a Graph.
-func (doc *Document) Graph() *ogdl.Graph {
-	return doc.g
+type headers struct {
+	h []string
+	n int
 }
-*/
 
 // Html returnes the Document in HTML format
 func (doc *Document) Html() string {
@@ -62,7 +61,39 @@ func (doc *Document) Html() string {
 		case "!p":
 			textToHtml(n, &sb)
 		case "!h":
-			headerToHtml(n, &sb)
+			headerToHtml(n, &sb, nil, "")
+		case "!ul":
+			listToHtml(n, &sb)
+		case "!tb":
+			tableToHtml(n, &sb)
+		}
+	}
+
+	return sb.String()
+}
+
+// Html returnes the Document in HTML format
+func (doc *Document) HtmlWithLinks(urlbase string) string {
+
+	var sb strings.Builder
+
+	if doc.g == nil {
+		return ""
+	}
+
+	hh := &headers{}
+
+	for _, n := range doc.g.Out {
+
+		s := n.ThisString()
+
+		switch s {
+		case "!pre":
+			codeToHtml(n, &sb)
+		case "!p":
+			textToHtml(n, &sb)
+		case "!h":
+			headerToHtml(n, &sb, hh, urlbase)
 		case "!ul":
 			listToHtml(n, &sb)
 		case "!tb":
@@ -90,7 +121,7 @@ func (doc *Document) HtmlNoHeader() string {
 			textToHtml(n, &sb)
 		case "!h":
 			if header {
-				headerToHtml(n, &sb)
+				headerToHtml(n, &sb, nil, "")
 			}
 			header = true
 		case "!ul":
@@ -106,24 +137,25 @@ func (doc *Document) HtmlNoHeader() string {
 // Part returns the part of the document indicated by the given path.
 func (doc *Document) Part(path string) *Document {
 
-	eh := eventhandler.New()
+	// This assumes that the Doc is a constant (generated once)
+	if doc.parts == nil {
+		eh := eventhandler.New()
 
-	for i, n := range doc.g.Out {
-
-		s := n.ThisString()
-
-		switch s {
-
-		case "!h":
-			headerToPart(n, eh, i)
+		for i, n := range doc.g.Out {
+			s := n.ThisString()
+			switch s {
+			case "!h":
+				headerToPart(n, eh, i)
+			}
 		}
+		doc.parts = eh.Graph()
 	}
 
-	parts := eh.Graph()
-	part := parts.Get(path)
+	part := doc.parts.Get(path)
 	if part == nil || part.Len() == 0 {
-		return &Document{nil, nil, 0}
+		return &Document{nil, nil, nil, 0}
 	}
+
 	start := int(part.Get("_start").Int64())
 	level := int(part.Get("_level").Int64())
 	end := doc.g.Len()
@@ -145,7 +177,7 @@ func (doc *Document) Part(path string) *Document {
 	g := ogdl.New(nil)
 	g.Out = doc.g.Out[start:end]
 
-	return &Document{nil, g, 0}
+	return &Document{nil, g, nil, 0}
 }
 
 // Data returns the Document as OGDL data
