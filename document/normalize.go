@@ -9,6 +9,8 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
+var tr = transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
+
 func Normalize(s string) string {
 
 	s = strings.TrimSpace(s)
@@ -16,10 +18,22 @@ func Normalize(s string) string {
 		return ""
 	}
 
-	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
-	r, _, _ := transform.String(t, s)
+	r, _, _ := transform.String(tr, s)
 
 	return toLowerCamel(r)
+}
+
+func CleanToLower(s string) string {
+
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+
+	tr := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
+	r, _, _ := transform.String(tr, s)
+
+	return strings.ToLower(r)
 }
 
 func valid(r rune) rune {

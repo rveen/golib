@@ -76,6 +76,8 @@ func inLine(s string) string {
 
 	s = taskList(s)
 
+	s = strings.ReplaceAll(s, ">-implements</a>", "><button class='btn btn-sm btn-info'>Implements</button></a>")
+
 	return s
 }
 
