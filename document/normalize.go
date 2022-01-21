@@ -25,13 +25,38 @@ func Normalize(s string) string {
 
 func CleanToLower(s string) string {
 
-	s = strings.TrimSpace(s)
-	if s == "" {
+	if len(s) < 3 {
 		return ""
 	}
 
-	tr := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
 	r, _, _ := transform.String(tr, s)
+
+	var ru []rune
+
+	start := false
+	for _, c := range r {
+		if !start && unicode.In(c, unicode.Punct, unicode.Space) {
+			continue
+		}
+		start = true
+		ru = append(ru, c)
+	}
+
+	n := 0
+	for i := len(ru) - 1; i >= 0; i-- {
+		if unicode.In(ru[i], unicode.Punct, unicode.Space) {
+			n++
+		} else {
+			break
+		}
+	}
+	ru = ru[0 : len(ru)-n]
+
+	r = string(ru)
+
+	if len(r) < 3 || len(r) > 32 {
+		return ""
+	}
 
 	return strings.ToLower(r)
 }
