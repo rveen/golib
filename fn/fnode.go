@@ -1,6 +1,7 @@
 package fn
 
 import (
+	"io/fs"
 	"strings"
 
 	"github.com/rveen/golib/document"
@@ -9,6 +10,7 @@ import (
 
 type FNode struct {
 	Base     string
+	Fs       fs.FS
 	Path     string
 	Revision string
 	Type     string

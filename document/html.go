@@ -1,6 +1,7 @@
 package document
 
 import (
+	"log"
 	"strconv"
 	"strings"
 
@@ -327,8 +328,15 @@ func textToHtml(n *ogdl.Graph, sb *strings.Builder) {
 
 func codeToHtml(n *ogdl.Graph, sb *strings.Builder) {
 
-	sb.WriteString("<pre>")
-	for _, g := range n.Out {
+	// First node is class
+
+	for n, g := range n.Out {
+		if n == 0 {
+			sb.WriteString("<pre class='")
+			sb.WriteString(g.ThisString())
+			sb.WriteString("'>\n")
+			continue
+		}
 		sb.WriteString(inLine(g.ThisString()))
 		sb.WriteByte('\n')
 	}
@@ -338,6 +346,9 @@ func codeToHtml(n *ogdl.Graph, sb *strings.Builder) {
 func (doc *Document) codeToHtml(sb *strings.Builder) {
 
 	doc.ix++
+
+	s, _ := doc.stream.Item(doc.ix)
+	log.Println("codeToHtml", s)
 
 	sb.WriteString("<pre>")
 	for {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"log"
+
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +14,10 @@ import (
 
 func New(root string) *FNode {
 	return &FNode{Base: root}
+}
+
+func NewFS(fs fs.FS) *FNode {
+	return &FNode{Fs: fs}
 }
 
 func (fn *FNode) Put(path string, content []byte) error {
@@ -38,7 +43,7 @@ func (fn *FNode) GetRaw(path string) error {
 
 func (fn *FNode) get(path string, raw bool) error {
 
-	log.Println("fn.get", fn.Base, path)
+	// log.Println("fn.get", path)
 
 	// Navigate the standard file system part
 
@@ -61,7 +66,7 @@ func (fn *FNode) get(path string, raw bool) error {
 			log.Println(err.Error())
 			return err
 		}
-		// log.Println(" - fn.get.navigate", fn.Path, fn.Type, path, len(fn.Parts)-fn.N)
+		// log.Printf(" - fn.get.navigate fn.Path=[%s] fn.Type=[%s] path=[%s]\n", fn.Path, fn.Type, path)
 
 		// Case: we reached a 'svn' or 'git' dir. Pass remaining path to new fs.
 		// Look for revisions
@@ -174,13 +179,71 @@ func (fn *FNode) index() bool {
 // file() -> fn.Content
 func (fn *FNode) file() error {
 	var err error
-	fn.Content, err = os.ReadFile(fn.Path)
+	fn.Content, err = fn.ReadFile(fn.Path)
 	return err
+}
+
+func (fn *FNode) ReadFile(path string) ([]byte, error) {
+	if fn.Fs != nil {
+		path := fn.Path
+		if strings.HasPrefix(path, "/") {
+			path = path[1:]
+		}
+		if path == "" {
+			path = "."
+		}
+		return fs.ReadFile(fn.Fs, path)
+	}
+	return os.ReadFile(fn.Path)
+}
+
+func (fn *FNode) Stat(path string) (fs.FileInfo, error) {
+	if fn.Fs == nil {
+		return os.Stat(path)
+	}
+
+	// io.fs (possibly embedded)
+	if strings.HasPrefix(path, "/") {
+		path = path[1:]
+	}
+	if path == "" {
+		path = "."
+	}
+
+	f, err := fn.Fs.Open(path)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer f.Close()
+
+	fi, err := f.Stat()
+
+	// log.Println("Stat(embed):", path, fi.Name(), err)
+
+	return fi, err
+}
+
+func (fn *FNode) ReadDir(path string) ([]fs.DirEntry, error) {
+	if fn.Fs != nil {
+		path := fn.Path
+		if strings.HasPrefix(path, "/") {
+			path = path[1:]
+		}
+		if path == "" {
+			path = "."
+		}
+		return fs.ReadDir(fn.Fs, path)
+	}
+	return os.ReadDir(fn.Path)
 }
 
 // dir() -> fn.Data
 func (fn *FNode) dir() error {
-	dir, err := os.ReadDir(fn.Path)
+
+	dir, err := fn.ReadDir(fn.Path)
+
 	if err != nil {
 		return err
 	}
@@ -208,7 +271,7 @@ func (fn *FNode) dir() error {
 		f.Add("time").Add(fi.ModTime().Unix())
 
 		if fi.Mode()&fs.ModeSymlink != 0 {
-			fii, _ := os.Stat(fn.Path + "/" + fi.Name())
+			fii, _ := fn.Stat(fn.Path + "/" + fi.Name())
 			if fii.IsDir() {
 				f.Set("type", "dir")
 			}
@@ -220,78 +283,42 @@ func (fn *FNode) dir() error {
 	return nil
 }
 
-// Navigate up to what exists
-func (fn *FNode) navigate_() error {
-
-	// log.Println("navigate: from", fn.Path, fn.Parts)
+// Navigate up to what exists.
+//
+// - Add fn.Parts to fn.Path until not found
+// - fn must represent that last known dir or file found
+// - start at fn.Path+fn.Parts[fn.N]
+//
+func (fn *FNode) navigate() error {
 
 	for i := fn.N; i < len(fn.Parts); i++ {
+
+		fn.N++
 
 		part := fn.Parts[i]
 		// log.Println(" - part:", part, fn.N)
 
-		if part != "" && part[0] == '.' {
+		if len(part) > 1 && part[0] == '.' {
 			return errors.New(". not allowed in paths")
 		}
 
-		saveThis := fn.Path
-		fn.Path += "/" + part
-		fn.Path = filepath.Clean(fn.Path)
+		savedPath := fn.Path
 
+		if fn.Path == "" {
+			fn.Path = part
+		} else {
+			fn.Path += "/" + part
+		}
 		typ := fn.info()
 
-		if typ == "" {
-			fn.Path = saveThis
-			return nil
-		}
-
-		fn.Type = typ
-		fn.N++
-
-		if typ != "dir" {
-			return nil
-		}
-	}
-
-	return nil
-}
-
-// Navigate up to what exists
-func (fn *FNode) navigate() error {
-
-	// log.Println("navigate: from", fn.Path, fn.Parts)
-
-	if fn.Type == "" {
-		fn.Type = fn.info()
-	}
-
-	for {
-		if fn.Type == "" {
-			return nil
-		}
-
-		if fn.N >= len(fn.Parts) {
-			return nil
-		}
-
-		part := fn.Parts[fn.N]
-		// log.Println(" - part:", part, fn.N)
-
-		if part != "" && part[0] == '.' {
-			return errors.New(". not allowed in paths")
-		}
-
-		path := fn.Path
-		fn.Path += "/" + part
-		typ := fn.info()
+		// log.Println(" - part type:", typ)
 
 		if typ == "" {
-			fn.Path = path
+			fn.N--
+			fn.Path = savedPath
 			return nil
 		}
-
 		fn.Type = typ
-		fn.N++
 	}
 
 	return nil
@@ -303,14 +330,15 @@ var exts = []string{".html", ".htm", ".md", ".ogdl"}
 //
 // fn is not affected.
 func (fn *FNode) info() string {
-	f, err := os.Stat(fn.Path)
+	f, err := fn.Stat(fn.Path)
+
 	if err != nil {
 		// check assumed extensions (if the path has no extension already)
 		if filepath.Ext(fn.Path) != "" {
 			return ""
 		}
 		for _, ext := range exts {
-			f, err = os.Stat(fn.Path + ext)
+			f, err = fn.Stat(fn.Path + ext)
 			if err == nil {
 				fn.Path += ext
 				return fn.fileType()
@@ -331,6 +359,10 @@ func (fn *FNode) info() string {
 //
 // fn is not affected.
 func (fn *FNode) dirType() string {
+	if fn.Fs != nil {
+		return "dir"
+	}
+
 	ff, err := os.ReadDir(fn.Path)
 	if err != nil {
 		return ""

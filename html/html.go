@@ -18,10 +18,16 @@ func (h Html) Signature(s string) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
+var imgExts = []string{".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp"}
+
 func (h Html) IsImage(p string) bool {
 	p = strings.ToLower(p)
-	if strings.HasSuffix(p, ".jpg") || strings.HasSuffix(p, ".png") {
-		return true
+	e := filepath.Ext(p)
+
+	for _, ext := range imgExts {
+		if e == ext {
+			return true
+		}
 	}
 	return false
 }
