@@ -52,6 +52,8 @@ func block(p *parser.Parser) bool {
 		quote(p)
 	case '-':
 		list(p)
+	case '+':
+		nlist(p)
 	case '|':
 		table(p)
 	case '`':
@@ -74,44 +76,9 @@ func inLine(s string) string {
 	s = strings.ReplaceAll(s, "___?", "<input class='form-control' type='text'/>")
 	s = strings.ReplaceAll(s, "_ok_?", "<input class='btn btn-primary' type='submit' value='Submit'>")
 
-	s = taskList(s)
-
 	s = strings.ReplaceAll(s, ">-implements</a>", "><button class='btn btn-sm btn-info'>Implements</button></a>")
 
 	return s
-}
-
-// TODO overkill string<->[]byte
-// Task check marks to Unicode
-func taskList(s string) string {
-
-	buf := []byte(s)
-
-	for i := 0; i < len(buf); i++ {
-
-		if i+3 >= len(buf) {
-			break
-		}
-
-		if buf[i] == '[' && buf[i+2] == ']' {
-			switch buf[i+1] {
-			case 'x':
-				buf[i+2] = 0x92
-				buf[i] = 0xE2
-				buf[i+1] = 0x98
-			default:
-				buf[i+2] = 0x90
-				buf[i] = 0xE2
-				buf[i+1] = 0x98
-			case '/':
-				buf[i+2] = 0x91
-				buf[i] = 0xE2
-				buf[i+1] = 0x98
-			}
-			i += 3
-		}
-	}
-	return string(buf)
 }
 
 // Header processes lines containing a header
@@ -218,6 +185,65 @@ func list(p *parser.Parser) {
 		ix := p.Ix
 		indent, _ := p.Space()
 		if c, _ := p.Byte(); c != '-' {
+			// end of list
+			p.Ix = ix
+			break
+		}
+
+		if indent > prevIndent {
+			level++
+		} else if indent < prevIndent {
+			level--
+		}
+
+		// Read the text of the item, with possibly a key
+		s := p.Line()
+		k, s := getKey(s)
+
+		if s != "" {
+
+			p.Emit("!li")
+			p.Inc()
+			b := []byte{'0'}
+			b[0] += byte(level)
+			p.Emit(string(b))
+			p.Emit(s)
+			p.Emit(k)
+			p.Dec()
+		}
+		prevIndent = indent
+	}
+
+	p.Dec()
+}
+
+// List processes (eventually) nested lists.
+// One call to this function processes all consecutive lines starting with '-',
+// even if not in the first position. Indentation levels need to be taken into
+// account.
+//
+// Output format:
+//
+// !ul
+//   !l1
+//     "item 1"
+//     item1
+//
+// TODO recursive parsing of lists (nested lists can be ul or ol)
+// TODO detect HR (---)
+// TODO include definition lists (- text :: text) <-- not std markdown
+func nlist(p *parser.Parser) {
+
+	level := 1
+	prevIndent := 0
+
+	p.Emit("!ol")
+	p.Inc()
+
+	for {
+		ix := p.Ix
+		indent, _ := p.Space()
+		if c, _ := p.Byte(); c != '+' {
 			// end of list
 			p.Ix = ix
 			break

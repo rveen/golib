@@ -134,9 +134,13 @@ func (doc *Document) listToHtml(sb *strings.Builder, level int) {
 	sb.WriteString("</ul>\n")
 }
 
-func listToHtml(n *ogdl.Graph, sb *strings.Builder) {
+func listToHtml(n *ogdl.Graph, sb *strings.Builder, ordered bool) {
 
-	sb.WriteString("<ul>\n")
+	if ordered {
+		sb.WriteString("<ol>\n")
+	} else {
+		sb.WriteString("<ul>\n")
+	}
 
 	level := 1
 
@@ -146,7 +150,25 @@ func listToHtml(n *ogdl.Graph, sb *strings.Builder) {
 		}
 		lv, _ := strconv.Atoi(li.GetAt(0).ThisString())
 		text := li.GetAt(1).ThisString()
+
 		text = inLine(text)
+
+		// Task lists
+
+		tasklist := false
+		if len(text) >= 3 && text[0] == '[' && text[2] == ']' {
+			switch text[1] {
+			case 'x':
+				text = "<span class='ballot-no'>☒</span>" + text[3:]
+				tasklist = true
+			case ' ':
+				text = "☐" + text[3:]
+				tasklist = true
+			case '/':
+				text = "<span class='ballot-yes'>☑</span>" + text[3:]
+				tasklist = true
+			}
+		}
 
 		if lv > level {
 			sb.WriteString("<ul>\n")
@@ -154,13 +176,21 @@ func listToHtml(n *ogdl.Graph, sb *strings.Builder) {
 			sb.WriteString("</ul>\n")
 		}
 
-		sb.WriteString("<li>" + text + "</li>\n")
+		if tasklist {
+			sb.WriteString("<li class='tasklist'>" + text + "</li>\n")
+		} else {
+			sb.WriteString("<li>" + text + "</li>\n")
+		}
 
 		level = lv
 	}
 
 	for {
-		sb.WriteString("</ul>\n")
+		if ordered {
+			sb.WriteString("</ol>\n")
+		} else {
+			sb.WriteString("</ul>\n")
+		}
 		level--
 		if level < 1 {
 			break
@@ -337,7 +367,7 @@ func codeToHtml(n *ogdl.Graph, sb *strings.Builder) {
 			sb.WriteString("'>\n")
 			continue
 		}
-		sb.WriteString(inLine(g.ThisString()))
+		sb.WriteString(g.ThisString())
 		sb.WriteByte('\n')
 	}
 	sb.WriteString("</pre>\n")

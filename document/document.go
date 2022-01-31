@@ -63,7 +63,9 @@ func (doc *Document) Html() string {
 		case "!h":
 			headerToHtml(n, &sb, nil, "")
 		case "!ul":
-			listToHtml(n, &sb)
+			listToHtml(n, &sb, false)
+		case "!ol":
+			listToHtml(n, &sb, true)
 		case "!tb":
 			tableToHtml(n, &sb)
 		}
@@ -95,7 +97,9 @@ func (doc *Document) HtmlWithLinks(urlbase string) string {
 		case "!h":
 			headerToHtml(n, &sb, hh, urlbase)
 		case "!ul":
-			listToHtml(n, &sb)
+			listToHtml(n, &sb, false)
+		case "!ol":
+			listToHtml(n, &sb, true)
 		case "!tb":
 			tableToHtml(n, &sb)
 		}
@@ -125,7 +129,9 @@ func (doc *Document) HtmlNoHeader() string {
 			}
 			header = true
 		case "!ul":
-			listToHtml(n, &sb)
+			listToHtml(n, &sb, false)
+		case "!ol":
+			listToHtml(n, &sb, true)
 		case "!tb":
 			tableToHtml(n, &sb)
 		}
