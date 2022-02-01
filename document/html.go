@@ -11,6 +11,7 @@ import (
 // level
 // text
 // key
+/*
 func (doc *Document) headerToHtml(sb *strings.Builder) {
 
 	h, _ := doc.stream.Item(doc.ix)
@@ -24,9 +25,9 @@ func (doc *Document) headerToHtml(sb *strings.Builder) {
 
 	// TODO What is faster? many sb.WriteString's, Sprintf or this:
 	sb.WriteString("<h" + h + " id=\"" + k + "\">" + text + "</h" + h + ">\n")
-}
+}*/
 
-func headerToHtml(n *ogdl.Graph, sb *strings.Builder, hh *headers, urlbase string) {
+func headerToHtml(n *ogdl.Graph, sb *strings.Builder, hh *headers, urlbase string, numbered bool) {
 
 	if n.Len() < 2 {
 		return
@@ -36,14 +37,21 @@ func headerToHtml(n *ogdl.Graph, sb *strings.Builder, hh *headers, urlbase strin
 	text := n.GetAt(1).ThisString()
 	text = inLine(text)
 
+	// If title, no links, no anchors
+	if h == "0" {
+		sb.WriteString("<div class='title'>" + text + "</div>\n")
+		return
+	}
+
 	if n.Len() == 2 {
 		// TODO What is faster? many sb.WriteString's, Sprintf or this:
 		sb.WriteString("<h" + h + "\">" + text + "</h" + h + ">\n")
 		return
 	}
 
-	// If hh exists, keep header hierarchy. We do that before creating the
-	// html content so that we can include a HREF.
+	// If hh exists, keep header hierarchy. It is used to create the href
+	// link to this part of the doc.
+	// We do that before creating the html content so that we can include a HREF.
 	key := n.GetAt(2).ThisString()
 
 	if hh == nil {
@@ -52,20 +60,36 @@ func headerToHtml(n *ogdl.Graph, sb *strings.Builder, hh *headers, urlbase strin
 	}
 
 	level, _ := strconv.Atoi(h)
-	hh.n = level
-	if level >= 10 {
+	level -= 1
+
+	if level > 9 {
 		return
 	}
 	if len(hh.h) == 0 {
 		hh.h = make([]string, 10)
-	}
-	hh.h[level-1] = key
-	key = ""
-	for i := 0; i < level; i++ {
-		key += hh.h[i] + "/"
+		hh.ix = make([]int, 10)
 	}
 
-	sb.WriteString("<h" + h + " id=\"" + key + "\"><a href='" + urlbase + "/" + key + "'>" + text + "</a></h" + h + ">\n")
+	hh.n = level
+	hh.h[level] = key
+	hh.ix[level] += 1
+
+	key = ""
+	number := ""
+	for i := 0; i <= level; i++ {
+		key += hh.h[i] + "/"
+		number += strconv.Itoa(hh.ix[i]) + "."
+	}
+
+	if numbered {
+		text = number + " " + text
+	}
+
+	if urlbase == "" {
+		sb.WriteString("<h" + h + " id=\"" + key + "\">" + text + "</h" + h + ">\n")
+	} else {
+		sb.WriteString("<h" + h + " id=\"" + key + "\"><a href='" + urlbase + "/" + key + "'>" + text + "</a></h" + h + ">\n")
+	}
 }
 
 // TODO nested lists

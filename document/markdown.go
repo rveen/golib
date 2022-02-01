@@ -98,15 +98,22 @@ func header(p *parser.Parser) {
 	n := 0
 	var c byte
 	var ok bool
+	var title bool
 
 	for {
 		c, ok = p.Byte()
 		if !ok {
 			return
 		}
+		if c == '!' {
+			title = true
+			c, ok = p.Byte()
+			break
+		}
 		if c != '#' {
 			break
 		}
+
 		n++
 	}
 	if c != ' ' {
@@ -117,9 +124,12 @@ func header(p *parser.Parser) {
 
 	// The rest of the line is the header
 	b := []byte{'0'}
-	b[0] += byte(n)
+	if !title {
+		b[0] += byte(n)
+	}
 	p.Emit("!h")
 	p.Inc()
+	// h0 = title, h1...h6 = header
 	p.Emit(string(b))
 	p.Dec()
 
@@ -155,7 +165,8 @@ func quote(p *parser.Parser) {
 }
 
 func command(p *parser.Parser) {
-	p.Line()
+	s := p.Line()
+	p.Emit(s)
 }
 
 // List processes (eventually) nested lists.

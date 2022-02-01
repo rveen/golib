@@ -6,6 +6,7 @@
 package document
 
 import (
+	"log"
 	"strconv"
 	"strings"
 
@@ -38,8 +39,9 @@ func New(s string) (*Document, error) {
 }
 
 type headers struct {
-	h []string
-	n int
+	h  []string
+	ix []int // used for numbering the headers
+	n  int
 }
 
 // Html returnes the Document in HTML format
@@ -51,6 +53,9 @@ func (doc *Document) Html() string {
 		return ""
 	}
 
+	hh := &headers{}
+	numbered := false
+
 	for _, n := range doc.g.Out {
 
 		s := n.ThisString()
@@ -61,13 +66,19 @@ func (doc *Document) Html() string {
 		case "!p":
 			textToHtml(n, &sb)
 		case "!h":
-			headerToHtml(n, &sb, nil, "")
+			if isNumbered(n.GetAt(1).ThisString()) {
+				numbered = true
+				n.Out[1].This = n.GetAt(1).ThisString()[3:]
+			}
+			headerToHtml(n, &sb, hh, "", numbered)
 		case "!ul":
 			listToHtml(n, &sb, false)
 		case "!ol":
 			listToHtml(n, &sb, true)
 		case "!tb":
 			tableToHtml(n, &sb)
+		case ".nh":
+			numbered = true
 		}
 	}
 
@@ -84,6 +95,7 @@ func (doc *Document) HtmlWithLinks(urlbase string) string {
 	}
 
 	hh := &headers{}
+	numbered := false
 
 	for _, n := range doc.g.Out {
 
@@ -95,17 +107,28 @@ func (doc *Document) HtmlWithLinks(urlbase string) string {
 		case "!p":
 			textToHtml(n, &sb)
 		case "!h":
-			headerToHtml(n, &sb, hh, urlbase)
+			if isNumbered(n.GetAt(1).ThisString()) {
+				numbered = true
+				n.Out[1].This = n.GetAt(1).ThisString()[3:]
+			}
+			headerToHtml(n, &sb, hh, urlbase, numbered)
 		case "!ul":
 			listToHtml(n, &sb, false)
 		case "!ol":
 			listToHtml(n, &sb, true)
 		case "!tb":
 			tableToHtml(n, &sb)
+		case ".nh":
+			numbered = true
 		}
 	}
 
 	return sb.String()
+}
+
+func isNumbered(text string) bool {
+	log.Printf("header [%s]\n", text)
+	return strings.HasPrefix(text, "1. ")
 }
 
 // Html returnes the Document in HTML format, but skip the first header
@@ -125,7 +148,7 @@ func (doc *Document) HtmlNoHeader() string {
 			textToHtml(n, &sb)
 		case "!h":
 			if header {
-				headerToHtml(n, &sb, nil, "")
+				headerToHtml(n, &sb, nil, "", false)
 			}
 			header = true
 		case "!ul":
