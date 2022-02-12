@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/hex"
+	"log"
 	"path/filepath"
 	"strings"
 
@@ -23,6 +24,8 @@ var imgExts = []string{".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp"}
 func (h Html) IsImage(p string) bool {
 	p = strings.ToLower(p)
 	e := filepath.Ext(p)
+
+	log.Println("html.IsImage", p)
 
 	for _, ext := range imgExts {
 		if e == ext {
