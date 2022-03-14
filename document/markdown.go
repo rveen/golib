@@ -83,6 +83,8 @@ func inLine(s string) string {
 
 // Header processes lines containing a header
 //
+// TODO # text {#anchor !type}
+//
 // Output format:
 //
 //   !h
