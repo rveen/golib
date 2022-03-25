@@ -186,6 +186,7 @@ func (fn *FNode) file() error {
 func (fn *FNode) ReadFile(path string) ([]byte, error) {
 	if fn.Fs != nil {
 		path := fn.Path
+		log.Println("fn.ReadFile", path)
 		if strings.HasPrefix(path, "/") {
 			path = path[1:]
 		}
