@@ -47,7 +47,7 @@ func (fn *FNode) get(path string, raw bool) error {
 
 	// Navigate the standard file system part
 
-	path = filepath.Clean(path)
+	//path = filepath.Clean(path)
 
 	if len(path) > 0 && path[0] == '/' {
 		path = path[1:]
