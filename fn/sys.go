@@ -272,8 +272,8 @@ func (fn *FNode) dir() error {
 		f.Add("time").Add(fi.ModTime().Unix())
 
 		if fi.Mode()&fs.ModeSymlink != 0 {
-			fii, _ := fn.Stat(fn.Path + "/" + fi.Name())
-			if fii.IsDir() {
+			fii, err := fn.Stat(fn.Path + "/" + fi.Name())
+			if err == nil && fii.IsDir() {
 				f.Set("type", "dir")
 			}
 		}

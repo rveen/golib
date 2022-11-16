@@ -105,13 +105,15 @@ func (fn *FNode) svnNavigate(path string) error {
 		fn.Path = filepath.Clean(fn.Path)
 
 		typ := fn.svnType()
+		fn.Type = typ
+
+		log.Println("svn part: type ", fn.Path, typ)
 
 		if typ == "" {
 			fn.Path = saveThis
 			return nil
 		}
 
-		fn.Type = typ
 		fn.N++
 
 		if typ == "file" {
