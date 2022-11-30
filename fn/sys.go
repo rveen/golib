@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io/fs"
 	"log"
-
 	"os"
 	"path/filepath"
 	"strings"
@@ -255,6 +254,7 @@ func (fn *FNode) dir() error {
 			continue
 		}
 
+		// entries starting with '.' are not shown
 		if fi.Name()[0] == '.' {
 			continue
 		}
@@ -297,7 +297,6 @@ func (fn *FNode) navigate() error {
 		fn.N++
 
 		part := fn.Parts[i]
-		// log.Println(" - part:", part, fn.N)
 
 		if len(part) > 1 && part[0] == '.' {
 			return errors.New(". not allowed in paths")
@@ -321,6 +320,68 @@ func (fn *FNode) navigate() error {
 	}
 
 	return nil
+}
+
+// dirType returns either 'dir ', 'svn' or 'git'
+// for the path contained in fn.Path
+//
+// fn is not affected.
+func (fn *FNode) dirType() string {
+
+	var dir []fs.DirEntry
+	var err error
+
+	if fn.RootFs != nil {
+		dir, err = fs.ReadDir(fn.RootFs, ioPathClean(fn.Path))
+	} else {
+		dir, err = os.ReadDir(fn.Path)
+	}
+
+	if err != nil {
+		return ""
+	}
+
+	sscore := 0
+	gscore := 0
+
+	for _, f := range dir {
+
+		switch f.Name() {
+		case "format":
+			sscore++
+			if sscore > 1 {
+				return "svn"
+			}
+		case "hooks":
+			sscore++
+			gscore++
+			if sscore > 1 {
+				return "svn"
+			}
+			if gscore > 1 {
+				return "git"
+			}
+		case "HEAD":
+			gscore++
+			if gscore > 1 {
+				return "svn"
+			}
+		}
+	}
+	return "dir"
+}
+
+// Prepare the path for io.fs.
+// io.fs.Read* functions need a path that doesn't start with / and is not empty.
+func ioPathClean(path string) string {
+
+	if strings.HasPrefix(path, "/") {
+		path = path[1:]
+	}
+	if path == "" {
+		path = "."
+	}
+	return path
 }
 
 var exts = []string{".html", ".htm", ".md", ".ogdl"}
@@ -360,64 +421,4 @@ func (fn *FNode) info() string {
 	}
 
 	return ""
-}
-
-func (fn *FNode) FType() string {
-	return ""
-}
-
-// dirType returns either 'dir ', 'svn' or 'git'
-// for the path contained in fn.Path
-//
-// fn is not affected.
-func (fn *FNode) dirType() string {
-	if fn.RootFs != nil {
-		return "dir"
-	}
-
-	ff, err := os.ReadDir(fn.Path)
-	if err != nil {
-		return ""
-	}
-
-	sscore := 0
-	gscore := 0
-
-	for _, f := range ff {
-
-		switch f.Name() {
-		case "format":
-			sscore++
-			if sscore > 1 {
-				return "svn"
-			}
-		case "hooks":
-			sscore++
-			gscore++
-			if sscore > 1 {
-				return "svn"
-			}
-			if gscore > 1 {
-				return "git"
-			}
-		case "HEAD":
-			gscore++
-			if gscore > 1 {
-				return "svn"
-			}
-		}
-	}
-	return "dir"
-}
-
-// io.fs.Read* functions need a path that doesn't start with / and is not empty.
-func ioPathClean(path string) string {
-
-	if strings.HasPrefix(path, "/") {
-		path = path[1:]
-	}
-	if path == "" {
-		path = "."
-	}
-	return path
 }
