@@ -12,19 +12,24 @@ import (
 	"github.com/rveen/ogdl"
 )
 
+// Create and emtpy FNode with the root set to the given system path.
 func New(root string) *FNode {
-	return &FNode{Base: root}
+	return &FNode{Root: root}
 }
 
+// Create an empty FNode with the root set to a io.FS filesystem. This is
+// used for example with go.embed file systems.
 func NewFS(fs fs.FS) *FNode {
-	return &FNode{Fs: fs}
+	return &FNode{RootFs: fs}
 }
 
 func (fn *FNode) Put(path string, content []byte) error {
 	return nil
 }
 
-// Get
+// Get returns an FNode (it updates its receiving object).
+//
+// What should fn contain to start with ?????
 //
 // Revision rules
 // - 1 rev per path
@@ -41,13 +46,24 @@ func (fn *FNode) GetRaw(path string) error {
 	return err
 }
 
+// get returns an FNode (it updates its receiving object).
+//
+// What should fn contain to start with ?????
+//
+// If raw is true, files are returned as is, not as data or document.
+// The rest of the behavior is unchanged.
 func (fn *FNode) get(path string, raw bool) error {
 
-	// log.Println("fn.get", path)
+	// Navigate the standard file system part. A get() allways starts at a
+	// normal directory. The path given is relative to the root directory
+	// as given to New(). It can be seen as absolute within that root.
 
-	// Navigate the standard file system part
-
-	//path = filepath.Clean(path)
+	// clean up 'path' and prepare fn.Parts with the path elements or parts.
+	// Reset the part counter fn.N.
+	//
+	// fn.Path is set to the absolute root path. fn.Parts contain the given
+	// path starting from the root. As parts are processed, they are added
+	// to fn.Part and the part counter fn.N is incremented.
 
 	if len(path) > 0 && path[0] == '/' {
 		path = path[1:]
@@ -55,7 +71,7 @@ func (fn *FNode) get(path string, raw bool) error {
 
 	fn.Parts = strings.Split(path, "/")
 	fn.N = 0
-	fn.Path = fn.Base
+	fn.Path = fn.Root
 
 	final := false
 
@@ -176,78 +192,60 @@ func (fn *FNode) index() bool {
 	return false
 }
 
-// file() -> fn.Content
+// Read a file into fn.Content (a byte array).
 func (fn *FNode) file() error {
+
 	var err error
-	fn.Content, err = fn.ReadFile(fn.Path)
+
+	if fn.RootFs != nil {
+		fn.Content, err = fs.ReadFile(fn.RootFs, ioPathClean(fn.Path))
+	} else {
+		fn.Content, err = os.ReadFile(fn.Path)
+	}
+
 	return err
 }
 
-func (fn *FNode) ReadFile(path string) ([]byte, error) {
-	if fn.Fs != nil {
-		path := fn.Path
-		log.Println("fn.ReadFile", path)
-		if strings.HasPrefix(path, "/") {
-			path = path[1:]
-		}
-		if path == "" {
-			path = "."
-		}
-		return fs.ReadFile(fn.Fs, path)
-	}
-	return os.ReadFile(fn.Path)
-}
+func (fn *FNode) stat(path string) (fs.FileInfo, error) {
 
-func (fn *FNode) Stat(path string) (fs.FileInfo, error) {
-	if fn.Fs == nil {
+	if fn.RootFs == nil {
 		return os.Stat(path)
 	}
 
 	// io.fs (possibly embedded)
-	if strings.HasPrefix(path, "/") {
-		path = path[1:]
-	}
-	if path == "" {
-		path = "."
-	}
-
-	f, err := fn.Fs.Open(path)
+	f, err := fn.RootFs.Open(ioPathClean(path))
+	defer f.Close()
 
 	if err != nil {
 		return nil, err
 	}
 
-	defer f.Close()
+	return f.Stat()
 
-	fi, err := f.Stat()
-
-	// log.Println("Stat(embed):", path, fi.Name(), err)
-
-	return fi, err
 }
 
-func (fn *FNode) ReadDir(path string) ([]fs.DirEntry, error) {
-	if fn.Fs != nil {
-		path := fn.Path
-		if strings.HasPrefix(path, "/") {
-			path = path[1:]
-		}
-		if path == "" {
-			path = "."
-		}
-		return fs.ReadDir(fn.Fs, path)
-	}
-	return os.ReadDir(fn.Path)
-}
-
-// dir() -> fn.Data
+// Read fn.Path or fn.RootFs+fn.Path as a directory and build a data structure
+// in fn.Data.
+//
+// TODO: should be fn.Root+fn.Path
 func (fn *FNode) dir() error {
 
-	dir, err := fn.ReadDir(fn.Path)
+	// If io.FS is set as root, use io.ReadDir. Else use regular os.ReadDir
+
+	var dir []fs.DirEntry
+	var err error
+
+	if fn.RootFs != nil {
+		dir, err = fs.ReadDir(fn.RootFs, ioPathClean(fn.Path))
+	} else {
+		dir, err = os.ReadDir(fn.Path)
+	}
 
 	if err != nil {
 		return err
 	}
+
+	// Now build the data structure with the directory info
 
 	g := ogdl.New(nil)
 
@@ -271,8 +269,11 @@ func (fn *FNode) dir() error {
 		f.Add("size").Add(fi.Size())
 		f.Add("time").Add(fi.ModTime().Unix())
 
+		// Special trick for symbolic links (we want to follow them)
+		// TODO Check this in go.embed
+
 		if fi.Mode()&fs.ModeSymlink != 0 {
-			fii, err := fn.Stat(fn.Path + "/" + fi.Name())
+			fii, err := fn.stat(fn.Path + "/" + fi.Name())
 			if err == nil && fii.IsDir() {
 				f.Set("type", "dir")
 			}
@@ -280,7 +281,6 @@ func (fn *FNode) dir() error {
 	}
 
 	fn.Data = g
-
 	return nil
 }
 
@@ -312,8 +312,6 @@ func (fn *FNode) navigate() error {
 		}
 		typ := fn.info()
 
-		// log.Println(" - part type:", typ)
-
 		if typ == "" {
 			fn.N--
 			fn.Path = savedPath
@@ -329,30 +327,43 @@ var exts = []string{".html", ".htm", ".md", ".ogdl"}
 
 // return info about a concrete path
 //
-// fn is not affected.
+// fn.Path is updated if a missing extension has been found.
+// TODO: do we want this?
 func (fn *FNode) info() string {
-	f, err := fn.Stat(fn.Path)
+
+	f, err := fn.stat(fn.Path)
+
+	if err == nil {
+		if f.IsDir() {
+			return fn.dirType()
+		} else {
+			return fn.fileType()
+		}
+	}
 
 	if err != nil {
-		// check assumed extensions (if the path has no extension already)
+
+		// If the path has an extension, then return "".
+		// If not, check some standard extensions that can be assumed
+		// (.html, .htm, .md and .ogdl)
+
 		if filepath.Ext(fn.Path) != "" {
 			return ""
 		}
 		for _, ext := range exts {
-			f, err = fn.Stat(fn.Path + ext)
+			f, err = fn.stat(fn.Path + ext)
 			if err == nil {
 				fn.Path += ext
 				return fn.fileType()
 			}
 		}
-		return ""
 	}
 
-	if f.IsDir() {
-		return fn.dirType()
-	}
+	return ""
+}
 
-	return fn.fileType()
+func (fn *FNode) FType() string {
+	return ""
 }
 
 // dirType returns either 'dir ', 'svn' or 'git'
@@ -360,7 +371,7 @@ func (fn *FNode) info() string {
 //
 // fn is not affected.
 func (fn *FNode) dirType() string {
-	if fn.Fs != nil {
+	if fn.RootFs != nil {
 		return "dir"
 	}
 
@@ -397,4 +408,16 @@ func (fn *FNode) dirType() string {
 		}
 	}
 	return "dir"
+}
+
+// io.fs.Read* functions need a path that doesn't start with / and is not empty.
+func ioPathClean(path string) string {
+
+	if strings.HasPrefix(path, "/") {
+		path = path[1:]
+	}
+	if path == "" {
+		path = "."
+	}
+	return path
 }

@@ -19,7 +19,7 @@ func (fn *FNode) svnGet(path string) error {
 		revs = true
 	}*/
 
-	log.Printf("svnGet: [%s] [%s] [%s]\n", fn.Base, fn.Path, path)
+	log.Printf("svnGet: [%s] [%s] [%s]\n", fn.Root, fn.Path, path)
 
 	for {
 		err := fn.svnNavigate(path)
@@ -129,7 +129,7 @@ func (fn *FNode) svnNavigate(path string) error {
 	if revs {
 		fn.Type = "log"
 	}
-	log.Printf("svnNav: [%s] [%s] [%s]\n", fn.Base, fn.Path, fn.Type)
+	log.Printf("svnNav: [%s] [%s] [%s]\n", fn.Root, fn.Path, fn.Type)
 
 	return nil
 }
@@ -139,12 +139,12 @@ func (fn *FNode) svnFile() error {
 
 	var err error
 
-	log.Printf("svnFile [%s|%s] [%s]\n", fn.Base, fn.Path, fn.Revision)
+	log.Printf("svnFile [%s|%s] [%s]\n", fn.Root, fn.Path, fn.Revision)
 
 	if fn.Revision == "" || fn.Revision == "HEAD" {
-		fn.Content, err = exec.Command("svnlook", "cat", fn.Base, fn.Path).Output()
+		fn.Content, err = exec.Command("svnlook", "cat", fn.Root, fn.Path).Output()
 	} else {
-		fn.Content, err = exec.Command("svnlook", "-r", fn.Revision, "cat", fn.Base, fn.Path).Output()
+		fn.Content, err = exec.Command("svnlook", "-r", fn.Revision, "cat", fn.Root, fn.Path).Output()
 
 	}
 
@@ -163,7 +163,7 @@ func (fn *FNode) svnDir() error {
 		rev = "HEAD"
 	}
 
-	b, err := exec.Command("svn", "list", "--xml", "-r", rev, "file:///"+fn.Base+"/"+path).Output()
+	b, err := exec.Command("svn", "list", "--xml", "-r", rev, "file:///"+fn.Root+"/"+path).Output()
 
 	if err != nil {
 		return err
@@ -186,13 +186,13 @@ func (fn *FNode) svnDir() error {
 
 	}
 	fn.Data = dd
-	log.Println("svnDir", fn.Base, fn.Path, dd.Text())
+	log.Println("svnDir", fn.Root, fn.Path, dd.Text())
 	return nil
 }
 
 func (fn *FNode) svnLog() error {
 
-	log.Printf("svnLog [%s] [%s] [%s]", fn.Base, fn.Path, fn.Revision)
+	log.Printf("svnLog [%s] [%s] [%s]", fn.Root, fn.Path, fn.Revision)
 
 	path := fn.Path
 	if path != "" && path[0] == '/' {
@@ -203,9 +203,9 @@ func (fn *FNode) svnLog() error {
 	var err error
 
 	if fn.Revision == "" || fn.Revision == "HEAD" {
-		b, err = exec.Command("svn", "log", "-v", "--xml", "file:///"+fn.Base, path).Output()
+		b, err = exec.Command("svn", "log", "-v", "--xml", "file:///"+fn.Root, path).Output()
 	} else {
-		b, err = exec.Command("svn", "log", "-r", fn.Revision, "-v", "--xml", "file:///"+fn.Base, path).Output()
+		b, err = exec.Command("svn", "log", "-r", fn.Revision, "-v", "--xml", "file:///"+fn.Root, path).Output()
 	}
 
 	if err != nil {
@@ -228,7 +228,7 @@ func (fn *FNode) svnLog() error {
 
 		rev := n.Node("@revision").String()
 
-		b, err = exec.Command("svn", "info", "--xml", "-r", rev, "file:///"+fn.Base+"/"+fn.Path).Output()
+		b, err = exec.Command("svn", "info", "--xml", "-r", rev, "file:///"+fn.Root+"/"+fn.Path).Output()
 		m := gxml.FromXML(b)
 
 		fmt.Println(m.Text())
@@ -272,9 +272,9 @@ func (fn *FNode) svnInfo() *ogdl.Graph {
 	var b []byte
 
 	if fn.Revision == "" || fn.Revision == "HEAD" {
-		b, err = exec.Command("svnlook", "meta", fn.Base, path).Output()
+		b, err = exec.Command("svnlook", "meta", fn.Root, path).Output()
 	} else {
-		b, err = exec.Command("svnlook", "meta", "-r", fn.Revision, fn.Base, path).Output()
+		b, err = exec.Command("svnlook", "meta", "-r", fn.Revision, fn.Root, path).Output()
 	}
 
 	if err != nil {
@@ -296,9 +296,9 @@ func (fn *FNode) svnType() string {
 	var b []byte
 
 	if fn.Revision == "" || fn.Revision == "HEAD" {
-		b, err = exec.Command("svnlook", "meta", fn.Base, path).Output()
+		b, err = exec.Command("svnlook", "meta", fn.Root, path).Output()
 	} else {
-		b, err = exec.Command("svnlook", "meta", "-r", fn.Revision, fn.Base, path).Output()
+		b, err = exec.Command("svnlook", "meta", "-r", fn.Revision, fn.Root, path).Output()
 	}
 
 	if err != nil {
