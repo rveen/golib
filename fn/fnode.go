@@ -78,7 +78,7 @@ func (fn *FNode) document() {
 
 	// If the current part is "_" then we want the data view of this document.
 	data := false
-	if fn.Parts[fn.N] == "_" {
+	if fn.N < len(fn.Parts) && fn.Parts[fn.N] == "_" {
 		fn.Data = fn.Document.Data()
 		fn.Type = "data"
 		fn.N++

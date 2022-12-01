@@ -386,7 +386,15 @@ func ioPathClean(path string) string {
 
 var exts = []string{".html", ".htm", ".md", ".ogdl"}
 
-// return info about a concrete path
+// If fn.Path points to a file or directory, return its type. Options are
+//
+// - data (end with .ogdl)
+// - document (ends with .md)
+// - file (any other file
+// - svn (SVN root directory)
+// - git (Git root directory)
+// - dir (regular directory: not SVN or Git)
+// - emtpy string: type is unknown.
 //
 // fn.Path is updated if a missing extension has been found.
 // TODO: do we want this?
