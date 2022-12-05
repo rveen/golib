@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golib/gstore/directory"
+
 	"github.com/rveen/ogdl"
 )
 
@@ -51,7 +53,7 @@ func (fn *FNode) GetRaw(path string) error {
 //
 // If raw is true, files are returned as is, not as data or document.
 // The rest of the behavior is unchanged.
-func (fn *FNode) get(path string, raw bool) error {
+func (fn *FNode) get_(path string, raw bool) error {
 
 	// Navigate the standard file system part. A get() allways starts at a
 	// normal directory. The path given is relative to the root directory
@@ -64,11 +66,7 @@ func (fn *FNode) get(path string, raw bool) error {
 	// path starting from the root. As parts are processed, they are added
 	// to fn.Part and the part counter fn.N is incremented.
 
-	if len(path) > 0 && path[0] == '/' {
-		path = path[1:]
-	}
-
-	fn.Parts = strings.Split(path, "/")
+	fn.Parts = directory.Parts(path)
 	fn.N = 0
 	fn.Path = fn.Root
 
@@ -179,12 +177,19 @@ func (fn *FNode) get(path string, raw bool) error {
 }
 
 func (fn *FNode) index() bool {
+
+	if fn.Data == nil || fn.Data.Out == nil {
+		log.Println("requesting fn.index with empty data")
+		return false
+	}
+
 	for _, entry := range fn.Data.Out {
 		name := entry.ThisString()
 
 		if strings.HasPrefix(name, "index.") || strings.HasPrefix(name, "readme.") {
 			fn.Path += "/" + name
 			fn.Type = fn.fileType()
+			log.Println("fn.index: index found", fn.Path, fn.Type)
 			return true
 		}
 	}
