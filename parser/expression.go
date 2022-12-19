@@ -16,6 +16,9 @@ func Ast(g *ogdl.Graph) {
 }
 
 func clean(g *ogdl.Graph) {
+	if g == nil {
+		return
+	}
 	for i := 0; i < len(g.Out); i++ {
 		node := g.Out[i]
 		if node.ThisString() == "!g" {
@@ -28,6 +31,10 @@ func clean(g *ogdl.Graph) {
 }
 
 func ast(g *ogdl.Graph) {
+
+	if g == nil {
+		return
+	}
 
 	for _, node := range g.Out {
 		ast(node)
