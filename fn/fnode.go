@@ -29,7 +29,7 @@ type FNode struct {
 func (fn *FNode) remainingPath() string {
 
 	path := ""
-	for i := fn.N; i < len(fn.Parts); i++ {
+	for i := fn.N + 1; i < len(fn.Parts); i++ {
 		path += "/" + fn.Parts[i]
 	}
 	if path != "" {
