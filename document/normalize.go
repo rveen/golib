@@ -26,10 +26,6 @@ func Normalize(s string) string {
 
 func CleanToLower(s string) string {
 
-	if len(s) < 3 {
-		return ""
-	}
-
 	r, _, _ := transform.String(tr, s)
 
 	var ru []rune
@@ -54,10 +50,6 @@ func CleanToLower(s string) string {
 	ru = ru[0 : len(ru)-n]
 
 	r = string(ru)
-
-	if len(r) < 3 || len(r) > 32 {
-		return ""
-	}
 
 	return strings.ToLower(r)
 }
