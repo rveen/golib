@@ -172,20 +172,45 @@ func (fn *FNode) svnDir() error {
 	g := gxml.FromXML(b)
 	g = g.Get("lists.list")
 	dd := ogdl.New(nil)
+
+	path = fn.Path // save path, restore later in case of index.* or readme.*
+	mode := 0      // 0 = dir, 1 = index.*, 2 = readme.*
+
 	for _, e := range g.Out {
 		if e.ThisString() != "entry" {
 			continue
 		}
-		d := dd.Add(e.Node("name").String())
-		d.Add("name").Add(e.Node("name").String())
+		fileName := e.Node("name").String()
+		d := dd.Add(fileName)
+		d.Add("name").Add(fileName)
 		if e.Node("@kind").String() == "dir" {
 			d.Add("type").Add("dir")
 		} else {
 			d.Add("type").Add("file")
 		}
 
+		// Check if there is a index or readme file in this directory
+		if strings.HasPrefix(fileName, "index.") {
+			mode = 2
+			fn.Path += "/" + fileName
+			fn.Type = "file"
+		} else if strings.HasPrefix(fileName, "readme.") {
+			if mode == 0 {
+				mode = 1
+				fn.Path += "/" + fileName
+				fn.Type = "readme"
+			}
+		}
 	}
+
+	if mode > 0 {
+		// Read content of index.* or readme.*
+		fn.svnFile()
+		fn.Path = path
+	}
+
 	fn.Data = dd
+
 	log.Println("svnDir", fn.Root, fn.Path, dd.Text())
 	return nil
 }
