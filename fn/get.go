@@ -3,7 +3,8 @@ package fn
 import (
 	"errors"
 	"golib/gstore/directory"
-	"log"
+
+	// "log"
 	"strings"
 )
 
@@ -34,7 +35,7 @@ func (fn *FNode) get(path string, raw bool) error {
 		fn.Path += "/" + part
 		fn.Type = fn.info()
 
-		log.Println("fn.get: path / type: ", fn.Path, fn.Type)
+		// log.Println("fn.get: path / type: ", fn.Path, fn.Type)
 
 		switch fn.Type {
 		case "dir":
@@ -89,7 +90,7 @@ func (fn *FNode) get(path string, raw bool) error {
 		}
 	}
 
-	log.Println("fn.get", fn.Path, fn.Type)
+	// log.Println("fn.get", fn.Path, fn.Type)
 
 	switch fn.Type {
 

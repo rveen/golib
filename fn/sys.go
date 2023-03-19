@@ -3,6 +3,7 @@ package fn
 import (
 	"errors"
 	"io/fs"
+
 	"log"
 	"os"
 	"path/filepath"
@@ -189,7 +190,7 @@ func (fn *FNode) index() bool {
 		if strings.HasPrefix(name, "index.") || strings.HasPrefix(name, "readme.") {
 			fn.Path += "/" + name
 			fn.Type = fn.fileType()
-			log.Println("fn.index: index found", fn.Path, fn.Type)
+			// log.Println("fn.index: index found", fn.Path, fn.Type)
 			return true
 		}
 	}
