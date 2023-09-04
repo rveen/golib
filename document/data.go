@@ -165,6 +165,9 @@ func (doc *Document) tableToData(eh *eventhandler.EventHandler) {
 			eh.Add(table[i][0])
 			eh.Inc()
 			for j := 1; j < ncols; j++ {
+				if len(table[i]) <= j {
+					break
+				}
 				eh.Add(table[i][j])
 			}
 			eh.Dec()
@@ -180,6 +183,9 @@ func (doc *Document) tableToData(eh *eventhandler.EventHandler) {
 			eh.Inc()
 			for j := 1; j < ncols; j++ {
 				eh.Add(table[0][j])
+				if len(table[i]) <= j {
+					continue
+				}
 				eh.Inc()
 				eh.Add(table[i][j])
 				eh.Dec()
