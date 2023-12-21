@@ -4,7 +4,6 @@ import (
 	"errors"
 	"golib/gstore/directory"
 
-	// "log"
 	"strings"
 )
 
@@ -35,8 +34,6 @@ func (fn *FNode) get(path string, raw bool) error {
 		fn.Path += "/" + part
 		fn.Type = fn.info()
 
-		// log.Println("fn.get: path / type: ", fn.Path, fn.Type)
-
 		switch fn.Type {
 		case "dir":
 			// continue
@@ -58,6 +55,7 @@ func (fn *FNode) get(path string, raw bool) error {
 
 			if !raw {
 				// Process remaining parts in document()
+				fn.N++
 				fn.document()
 			}
 			return nil
