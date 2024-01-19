@@ -52,10 +52,24 @@ func headerToHtml(n *ogdl.Graph, sb *strings.Builder, hh *headers, urlbase strin
 	// If hh exists, keep header hierarchy. It is used to create the href
 	// link to this part of the doc.
 	// We do that before creating the html content so that we can include a HREF.
-	key := n.GetAt(2).ThisString()
+	key := ""
+	typ := ""
+	for i := 2; i < n.Len(); i++ {
+		s := n.GetAt(i).ThisString()
+		if strings.HasPrefix(s, "#") {
+			key = s[1:]
+		} else if strings.HasPrefix(s, "!") {
+			typ = s[1:]
+			break
+		}
+	}
+
+	if typ != "" {
+		typ = " data-type=\"" + typ + "\" "
+	}
 
 	if hh == nil {
-		sb.WriteString("<h" + h + " id=\"" + key + "\">" + text + "</h" + h + ">\n")
+		sb.WriteString("<h" + h + typ + " id=\"" + key + "\">" + text + "</h" + h + ">\n")
 		return
 	}
 
@@ -86,9 +100,9 @@ func headerToHtml(n *ogdl.Graph, sb *strings.Builder, hh *headers, urlbase strin
 	}
 
 	if urlbase == "" {
-		sb.WriteString("<h" + h + " id=\"" + key + "\">" + text + "</h" + h + ">\n")
+		sb.WriteString("<h" + h + typ + " id=\"" + key + "\">" + text + "</h" + h + ">\n")
 	} else {
-		sb.WriteString("<h" + h + " id=\"" + key + "\"><a href='" + urlbase + "/" + key + "'>" + text + "</a></h" + h + ">\n")
+		sb.WriteString("<h" + h + typ + " id=\"" + key + "\"><a href='" + urlbase + "/" + key + "'>" + text + "</a></h" + h + ">\n")
 	}
 }
 

@@ -41,11 +41,27 @@ func (doc *Document) headerToData(eh *eventhandler.EventHandler) {
 	doc.ix++
 	key, _ := doc.stream.Item(doc.ix)
 	doc.ix++
+	typ, _ := doc.stream.Item(doc.ix)
+	doc.ix++
+
+	if strings.HasPrefix(key, "#") {
+		key = key[1:]
+	}
+
+	if strings.HasPrefix(typ, "!") {
+		typ = typ[1:]
+	}
 
 	n, _ := strconv.Atoi(level)
 	eh.SetLevel(n - 1)
 	eh.Add(key)
 	eh.Inc()
+	if typ != "" {
+		eh.Add("_type")
+		eh.Inc()
+		eh.Add(typ)
+		eh.Dec()
+	}
 }
 
 func headerToPart(n *ogdl.Graph, eh *eventhandler.EventHandler, ix int) {
@@ -55,6 +71,10 @@ func headerToPart(n *ogdl.Graph, eh *eventhandler.EventHandler, ix int) {
 
 	level := n.GetAt(0).ThisString()
 	key := n.GetAt(2).ThisString()
+
+	if strings.HasPrefix(key, "#") {
+		key = key[1:]
+	}
 
 	lv, _ := strconv.Atoi(level)
 	eh.SetLevel(lv - 1)

@@ -10,6 +10,7 @@ import (
 
 var (
 	anchor = regexp.MustCompile(`{#\w+}`)
+	typ    = regexp.MustCompile(`{!\w+}`)
 	link   = regexp.MustCompile(`\[(.+)\]\((.+)\)`)
 	link2  = regexp.MustCompile(`\[\]\((.+)\)`)
 	img    = regexp.MustCompile(`!\[(.+)\]\( *([^ ]+) *(.*)\)`)
@@ -137,32 +138,47 @@ func header(p *parser.Parser) {
 	p.Inc()
 	// h0 = title, h1...h6 = header
 	p.Emit(string(b))
-	p.Dec()
 
 	p.Space()
 	s := p.Line()
 
-	// Check for anchor
-	var key string
+	// Check for anchor and type
+
+	var key, typ string
+	typ, s = getType(s)
 	key, s = getKey(s)
 
-	if s != "" {
-		p.Inc()
-		p.Emit(s)
-		p.Emit(key)
-		p.Dec()
-	}
+	p.Emit(s) // The header text
+	p.Emit("#" + key)
+	p.Emit("!" + typ)
+
+	p.Dec()
 }
 
 func getKey(s string) (string, string) {
 	ii := anchor.FindStringIndex(s)
 	key := ""
+
 	if ii != nil {
 		key = s[ii[0]+2 : ii[1]-1]
 		s = s[:ii[0]]
 	} else {
 		key = Normalize(s)
 	}
+	return key, strings.TrimSpace(s)
+}
+
+func getType(s string) (string, string) {
+	ii := typ.FindStringIndex(s)
+	key := ""
+
+	if ii == nil {
+		return "", s
+	}
+
+	key = s[ii[0]+2 : ii[1]-1]
+	s = s[:ii[0]]
+
 	return key, strings.TrimSpace(s)
 }
 
