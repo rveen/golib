@@ -11,6 +11,7 @@ import (
 
 var tr = transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
 
+// TODO Needs optimization
 func Normalize(s string) string {
 
 	s = strings.TrimSpace(s)
@@ -21,7 +22,34 @@ func Normalize(s string) string {
 	r, _, _ := transform.String(tr, s)
 
 	//return toLowerCamel(r)
-	return toKebab(r)
+	return toKebab2(r)
+}
+
+func toKebab2(s string) string {
+
+	var prev rune
+	var sb strings.Builder
+
+	s = strings.ToLower(s)
+
+	for _, c := range s {
+		if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') {
+			sb.WriteRune(c)
+			prev = c
+		} else {
+			if prev != '_' {
+				prev = '_'
+				sb.WriteRune('_')
+			}
+		}
+
+	}
+
+	s = sb.String()
+	if s[len(s)-1] == '_' {
+		s = s[:len(s)-1]
+	}
+	return s
 }
 
 func CleanToLower(s string) string {
@@ -122,6 +150,9 @@ func ToScreamingDelimited(s string, delimiter uint8, ignore string, screaming bo
 	s = strings.TrimSpace(s)
 	n := strings.Builder{}
 	n.Grow(len(s) + 2) // nominal 2 bytes of extra space for inserted delimiters
+
+	var prev uint8
+
 	for i, v := range []byte(s) {
 		vIsCap := v >= 'A' && v <= 'Z'
 		vIsLow := v >= 'a' && v <= 'z'
@@ -158,11 +189,15 @@ func ToScreamingDelimited(s string, delimiter uint8, ignore string, screaming bo
 			}
 		}
 
-		if (v == ' ' || v == '_' || v == '-' || v == '.') && !strings.ContainsAny(string(v), ignore) {
+		if (v == ' ' || v == '_' || v == '-' || v == '.' || v == '/') && !strings.ContainsAny(string(v), ignore) {
 			// replace space/underscore/hyphen/dot with delimiter
-			n.WriteByte(delimiter)
+			if prev != delimiter {
+				n.WriteByte(delimiter)
+				prev = delimiter
+			}
 		} else {
 			n.WriteByte(v)
+			prev = v
 		}
 	}
 
