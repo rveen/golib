@@ -48,7 +48,7 @@ func (db *Db) Exec(g *ogdl.Graph) error {
 
 		fname := f.ThisString()
 
-		fields += ", " + fname
+		fields += ", `" + fname + "`"
 
 		// is the field an 'int' ?
 		isInt := false
