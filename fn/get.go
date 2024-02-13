@@ -2,8 +2,6 @@ package fn
 
 import (
 	"errors"
-	"golib/gstore/directory"
-
 	"strings"
 )
 
@@ -14,7 +12,7 @@ import (
 func (fn *FNode) get(path string, raw bool) error {
 
 	// Split the path into its parts or elements
-	fn.Parts = directory.Parts(path)
+	fn.Parts = parts(path)
 
 	// fn.Root should be a directory. Load the dir info into fn.
 	fn.Path = fn.Root
@@ -154,4 +152,15 @@ func (fn *FNode) generic() string {
 		}
 	}
 	return ""
+}
+
+func parts(path string) []string {
+	ss := strings.Split(path, "/")
+	var st []string
+	for _, s := range ss {
+		if s != "" {
+			st = append(st, s)
+		}
+	}
+	return st
 }
