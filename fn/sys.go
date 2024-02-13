@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"golib/gstore/directory"
-
 	"github.com/rveen/ogdl"
 )
 
@@ -67,7 +65,7 @@ func (fn *FNode) get_(path string, raw bool) error {
 	// path starting from the root. As parts are processed, they are added
 	// to fn.Part and the part counter fn.N is incremented.
 
-	fn.Parts = directory.Parts(path)
+	fn.Parts = parts(path)
 	fn.N = 0
 	fn.Path = fn.Root
 
