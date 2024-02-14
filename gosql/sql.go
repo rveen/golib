@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
-	_ "modernc.org/sqlite"
 
 	"github.com/rveen/ogdl"
 )
@@ -44,11 +43,13 @@ func (db *Db) Exec(g *ogdl.Graph) error {
 
 	fields := ""
 	values := ""
+	upd := ""
 	for _, f := range obj.Out {
 
 		fname := f.ThisString()
 
 		fields += ", `" + fname + "`"
+		upd += ", `" + fname + "` = "
 
 		// is the field an 'int' ?
 		isInt := false
@@ -60,25 +61,40 @@ func (db *Db) Exec(g *ogdl.Graph) error {
 
 		if isInt {
 			values += ", " + f.String()
+			upd += f.String()
 		} else {
 			values += ", '" + f.String() + "'"
+			upd += "'" + f.String() + "'"
 		}
-
 	}
 	fields = fields[2:]
 	values = values[2:]
+	upd = upd[2:]
 
 	switch f {
 	case "add":
 		fallthrough
 	case "replace":
-		_, err = db.Db.Exec("replace into " + tb + " (" + fields + ") values (" + values + ")")
-		//row := db.db.QueryRow("SELECT LAST_INSERT_ID();")
+		q := "replace into " + tb + " (" + fields + ") values (" + values + ")"
+		log.Printf("gosql.Exec: %s\n", q)
+
+		_, err = db.Db.Exec(q)
 	case "insert":
-		_, err = db.Db.Exec("insert into " + tb + " (" + fields + ") values (" + values + ")")
+		q := "insert into " + tb + " (" + fields + ") values (" + values + ")"
+		log.Printf("gosql.Exec: %s\n", q)
+		_, err = db.Db.Exec(q)
+
 	case "delete":
-	case "del":
+		where := g.Node("where").String()
+		q := "delete from " + tb + " where " + where
+		log.Printf("gosql.Exec: %s\n", q)
+		_, err = db.Db.Exec(q)
+
 	case "update":
+		where := g.Node("where").String()
+		q := "UPDATE " + tb + " SET " + upd + " WHERE " + where
+		log.Printf("gosql.Exec: %s\n", q)
+		_, err = db.Db.Exec(q)
 	}
 
 	return err
@@ -118,7 +134,7 @@ func (db *Db) Query(q string) *ogdl.Graph {
 	for rows.Next() {
 
 		for i := 0; i < len(cols); i++ {
-			values[i] = new(string)
+			values[i] = new(sql.NullString)
 		}
 
 		err := rows.Scan(values...)
@@ -129,11 +145,22 @@ func (db *Db) Query(q string) *ogdl.Graph {
 
 		n := rr.Add("-")
 		for i := 0; i < len(cols); i++ {
-			s := *(values[i].(*string))
-			if s == "" {
-				s = "-"
+
+			ns, ok := values[i].(*sql.NullString)
+			v := ""
+			if !ok {
+				s, ok := values[i].(*string)
+				if !ok {
+					log.Printf("error: failed to convert type %T [%d]\n", values[i], i)
+					continue
+				}
+
+				v = *s
+			} else {
+				v = ns.String
 			}
-			n.Add(s)
+
+			n.Add(v)
 		}
 	}
 
@@ -174,7 +201,7 @@ func (db *Db) Query2(q string) *ogdl.Graph {
 	for rows.Next() {
 
 		for i := 0; i < len(cols); i++ {
-			values[i] = new(string)
+			values[i] = new(sql.NullString)
 		}
 
 		err := rows.Scan(values...)
@@ -185,11 +212,21 @@ func (db *Db) Query2(q string) *ogdl.Graph {
 
 		n := rr.Add("-")
 		for i := 0; i < len(cols); i++ {
-			s := *(values[i].(*string))
-			if s == "" {
-				s = "-"
+			ns, ok := values[i].(*sql.NullString)
+			v := ""
+			if !ok {
+				s, ok := values[i].(*string)
+				if !ok {
+					log.Printf("error: failed to convert type %T [%d]\n", values[i], i)
+					continue
+				}
+
+				v = *s
+			} else {
+				v = ns.String
 			}
-			n.Add(cols[i]).Add(s)
+
+			n.Add(cols[i]).Add(v)
 		}
 	}
 
