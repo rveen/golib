@@ -1,6 +1,7 @@
 package types
 
 import (
+	"mime"
 	"os"
 	"path/filepath"
 	"time"

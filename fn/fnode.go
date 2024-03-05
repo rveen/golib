@@ -9,17 +9,19 @@ import (
 )
 
 type FNode struct {
-	Root     string
-	RootFs   fs.FS
+	Root   string
+	RootFs fs.FS
+
 	Path     string
 	Revision string
 	Type     string
-	Parts    []string
-	N        int
 	Data     *ogdl.Graph
 	Document *document.Document
 	Content  []byte
 	Params   map[string]string
+
+	parts []string
+	n     int
 }
 
 // Return the part of the path that hasn't been processed
@@ -29,8 +31,8 @@ type FNode struct {
 func (fn *FNode) remainingPath() string {
 
 	path := ""
-	for i := fn.N; i < len(fn.Parts); i++ {
-		path += "/" + fn.Parts[i]
+	for i := fn.n; i < len(fn.parts); i++ {
+		path += "/" + fn.parts[i]
 	}
 	if path != "" {
 		return path[1:]
@@ -45,8 +47,8 @@ func (fn *FNode) remainingPath() string {
 func (fn *FNode) remainingPathDot() string {
 
 	path := ""
-	for i := fn.N; i < len(fn.Parts); i++ {
-		path += "." + fn.Parts[i]
+	for i := fn.n; i < len(fn.parts); i++ {
+		path += "." + fn.parts[i]
 	}
 	if path != "" {
 		return path[1:]
@@ -78,10 +80,10 @@ func (fn *FNode) document() {
 
 	// If the current part is "_" then we want the data view of this document.
 	data := false
-	if fn.N < len(fn.Parts) && fn.Parts[fn.N] == "_" {
+	if fn.n < len(fn.parts) && fn.parts[fn.n] == "_" {
 		fn.Data = fn.Document.Data()
 		fn.Type = "data"
-		fn.N++
+		fn.n++
 		data = true
 	} else {
 		// fn.Type = "document"		Probably this has been set already
@@ -105,6 +107,17 @@ func (fn *FNode) fileType() string {
 		return "document"
 	}
 	if strings.HasSuffix(fn.Path, ".ogdl") {
+		return "data"
+	}
+	return "file"
+}
+
+// Return the type of a file either as data, document or file (blob).
+func fileType(path string) string {
+	if strings.HasSuffix(path, ".md") {
+		return "document"
+	}
+	if strings.HasSuffix(path, ".ogdl") {
 		return "data"
 	}
 	return "file"

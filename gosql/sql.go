@@ -5,6 +5,7 @@ import (
 	"log"
 	"strings"
 
+	_ "github.com/denisenkom/go-mssqldb"
 	_ "github.com/go-sql-driver/mysql"
 
 	"github.com/rveen/ogdl"
@@ -16,11 +17,13 @@ type Db struct {
 
 func (db *Db) Open(typ, uri string) error {
 	var err error
-	if db.Db == nil {
-		db.Db, err = sql.Open(typ, uri)
-		return err
+
+	if db.Db != nil {
+		db.Close()
 	}
-	return nil
+
+	db.Db, err = sql.Open(typ, uri)
+	return err
 }
 
 func (db *Db) Close() {

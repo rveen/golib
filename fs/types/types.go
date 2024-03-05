@@ -24,12 +24,13 @@ var typeByExtension = map[string]string{
 	".svg":  "image/svg+xml",
 	".webp": "image/webp",
 
-	".xml":  "data/xml",
-	".ogdl": "data/ogdl",
-	".yml":  "data/yaml",
-	".yaml": "data/yaml",
-	".json": "data/json",
-	".nb":   "data/notebook",
+	".xml":   "data/xml",
+	".ogdl":  "data/ogdl",
+	".yml":   "data/yaml",
+	".yaml":  "data/yaml",
+	".json":  "data/json",
+	".nb":    "data/notebook",
+	".ipynb": "data/notebook",
 }
 
 // TypeByExtension returns the type of a file according to its extension.

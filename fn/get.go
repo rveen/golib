@@ -8,11 +8,10 @@ import (
 // Get returns the FNode that corresponds to the path given.
 //
 // It receives an FNode where only the root of the file system is set.
-//
 func (fn *FNode) get(path string, raw bool) error {
 
 	// Split the path into its parts or elements
-	fn.Parts = parts(path)
+	fn.parts = parts(path)
 
 	// fn.Root should be a directory. Load the dir info into fn.
 	fn.Path = fn.Root
@@ -20,9 +19,9 @@ func (fn *FNode) get(path string, raw bool) error {
 
 	// Navigate the fyle system part
 
-	for fn.N = 0; fn.N < len(fn.Parts); fn.N++ {
+	for fn.n = 0; fn.n < len(fn.parts); fn.n++ {
 
-		part := fn.Parts[fn.N]
+		part := fn.parts[fn.n]
 
 		if len(part) >= 1 && part[0] == '.' {
 			return errors.New(". not allowed in paths")
@@ -39,6 +38,7 @@ func (fn *FNode) get(path string, raw bool) error {
 		case "svn":
 			// Create a new fn to return the SVN part
 			fn2 := New(fn.Path)
+			fn.n++
 			err := fn2.svnGet(fn.remainingPath())
 			*fn = *fn2
 			return err
@@ -53,7 +53,7 @@ func (fn *FNode) get(path string, raw bool) error {
 
 			if !raw {
 				// Process remaining parts in document()
-				fn.N++
+				fn.n++
 				fn.document()
 			}
 			return nil
@@ -86,12 +86,10 @@ func (fn *FNode) get(path string, raw bool) error {
 		}
 	}
 
-	// log.Println("fn.get", fn.Path, fn.Type)
-
 	switch fn.Type {
 
 	case "file":
-		if fn.N != len(fn.Parts) {
+		if fn.n != len(fn.parts) {
 			return errors.New("404 (extra path after file)")
 		}
 		return fn.file()
@@ -141,12 +139,12 @@ func (fn *FNode) generic() string {
 
 			if strings.HasSuffix(token, "_end") {
 				fn.Params[token[1:len(token)-4]] = fn.remainingPath()
-				fn.Parts[fn.N] = token
-				fn.N = len(fn.Parts)
+				fn.parts[fn.n] = token
+				fn.n = len(fn.parts)
 				return token
 			} else {
-				fn.Params[token[1:]] = fn.Parts[fn.N]
-				fn.Parts[fn.N] = token
+				fn.Params[token[1:]] = fn.parts[fn.n]
+				fn.parts[fn.n] = token
 				return token
 			}
 		}

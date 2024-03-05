@@ -35,7 +35,6 @@ func (fn *FNode) Put(path string, content []byte) error {
 // - 1 rev per path
 // - @ at the end means log()
 // - @rev means a specific revision (at any point in the path that has revisions)
-//
 func (fn *FNode) Get(path string) error {
 	return fn.get(path, false)
 }
@@ -52,6 +51,7 @@ func (fn *FNode) GetRaw(path string) error {
 //
 // If raw is true, files are returned as is, not as data or document.
 // The rest of the behavior is unchanged.
+/*
 func (fn *FNode) get_(path string, raw bool) error {
 
 	// Navigate the standard file system part. A get() allways starts at a
@@ -65,8 +65,8 @@ func (fn *FNode) get_(path string, raw bool) error {
 	// path starting from the root. As parts are processed, they are added
 	// to fn.Part and the part counter fn.N is incremented.
 
-	fn.Parts = parts(path)
-	fn.N = 0
+	fn.parts = parts(path)
+	fn.n = 0
 	fn.Path = fn.Root
 
 	final := false
@@ -92,7 +92,7 @@ func (fn *FNode) get_(path string, raw bool) error {
 			return err
 		}
 
-		left := len(fn.Parts) - fn.N
+		left := len(fn.parts) - fn.n
 
 	again:
 
@@ -138,7 +138,7 @@ func (fn *FNode) get_(path string, raw bool) error {
 
 				if token == "index.ogdl" {
 					fn.Path += "/index.ogdl"
-					fn.N--
+					fn.n--
 					continue
 				}
 				if token[0] == '_' {
@@ -150,11 +150,11 @@ func (fn *FNode) get_(path string, raw bool) error {
 					if strings.HasSuffix(token, "_end") {
 						// log.Println(" - end token: ", token, fn.remainingPath())
 						fn.Params[token[1:len(token)-4]] = fn.remainingPath()
-						fn.Parts[fn.N] = token
+						fn.parts[fn.n] = token
 						final = true
 					} else {
-						fn.Params[token[1:]] = fn.Parts[fn.N]
-						fn.Parts[fn.N] = token
+						fn.Params[token[1:]] = fn.parts[fn.n]
+						fn.parts[fn.n] = token
 					}
 					goto nav
 				}
@@ -174,6 +174,7 @@ func (fn *FNode) get_(path string, raw bool) error {
 
 	return errors.New("cannot reach this point!")
 }
+*/
 
 func (fn *FNode) index() bool {
 
@@ -293,14 +294,13 @@ func (fn *FNode) dir() error {
 // - Add fn.Parts to fn.Path until not found
 // - fn must represent that last known dir or file found
 // - start at fn.Path+fn.Parts[fn.N]
-//
 func (fn *FNode) navigate() error {
 
-	for i := fn.N; i < len(fn.Parts); i++ {
+	for i := fn.n; i < len(fn.parts); i++ {
 
-		fn.N++
+		fn.n++
 
-		part := fn.Parts[i]
+		part := fn.parts[i]
 
 		if len(part) > 1 && part[0] == '.' {
 			return errors.New(". not allowed in paths")
@@ -316,7 +316,7 @@ func (fn *FNode) navigate() error {
 		typ := fn.info()
 
 		if typ == "" {
-			fn.N--
+			fn.n--
 			fn.Path = savedPath
 			return nil
 		}

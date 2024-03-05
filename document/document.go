@@ -2,7 +2,6 @@
 // rendered later as HTML or treated as data
 //
 // The markdown does follow mostly the de-facto rules, but not all.
-//
 package document
 
 import (
@@ -49,7 +48,7 @@ func (doc *Document) Html() string {
 
 	var sb strings.Builder
 
-	if doc.g == nil {
+	if doc == nil || doc.g == nil {
 		return ""
 	}
 

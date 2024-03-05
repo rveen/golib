@@ -19,7 +19,9 @@ func (fn *FNode) svnGet(path string) error {
 		revs = true
 	}*/
 
-	log.Printf("svnGet: [%s] [%s] [%s]\n", fn.Root, fn.Path, path)
+	fn.Root, _ = filepath.Abs(filepath.Clean(fn.Root))
+
+	log.Printf("svnGet: fn.Root [%s] fn.Path [%s] path [%s]\n", fn.Root, fn.Path, path)
 
 	for {
 		err := fn.svnNavigate(path)
@@ -27,7 +29,7 @@ func (fn *FNode) svnGet(path string) error {
 			return err
 		}
 
-		left := len(fn.Parts) - fn.N
+		left := len(fn.parts) - fn.n
 
 		switch fn.Type {
 
@@ -45,6 +47,11 @@ func (fn *FNode) svnGet(path string) error {
 			// check _token
 			// check index / readme
 			fn.svnDir()
+			if fn.Type == "document" {
+				fn.document()
+			} else if fn.Type == "data" {
+				fn.data()
+			}
 			return nil
 
 		case "log":
@@ -58,7 +65,7 @@ func (fn *FNode) svnGet(path string) error {
 			return fn.svnFile()
 
 		default:
-			return errors.New("unknown type " + fn.Type)
+			return errors.New("unknown: " + fn.Type)
 		}
 	}
 }
@@ -80,25 +87,25 @@ func (fn *FNode) svnNavigate(path string) error {
 	}
 
 	if path != "" {
-		fn.Parts = strings.Split(path, "/")
+		fn.parts = strings.Split(path, "/")
 	}
-	fn.N = 0
+	fn.n = 0
 	fn.Path = ""
 
 	// Extract revision if any
 	fn.Revision = ""
-	for i, part := range fn.Parts {
+	for i, part := range fn.parts {
 		n := strings.IndexByte(part, '@')
 		if n != -1 {
 			log.Println("nav: revision found", n, part[:n], part[n+1:], part)
-			fn.Parts[i] = part[:n]
+			fn.parts[i] = part[:n]
 			fn.Revision = part[n+1:]
 			break
 		}
 	}
 
 	// Go step by step, we don't know where the file path ends.
-	for _, part := range fn.Parts {
+	for _, part := range fn.parts {
 
 		saveThis := fn.Path
 		fn.Path += "/" + part
@@ -114,7 +121,7 @@ func (fn *FNode) svnNavigate(path string) error {
 			return nil
 		}
 
-		fn.N++
+		fn.n++
 
 		if typ == "file" {
 			// Cannot navigate into a file here
@@ -129,7 +136,7 @@ func (fn *FNode) svnNavigate(path string) error {
 	if revs {
 		fn.Type = "log"
 	}
-	log.Printf("svnNav: [%s] [%s] [%s]\n", fn.Root, fn.Path, fn.Type)
+	log.Printf("svnNav: fn.Root [%s] fn.Path [%s] fn.Type [%s]\n", fn.Root, fn.Path, fn.Type)
 
 	return nil
 }
@@ -139,14 +146,15 @@ func (fn *FNode) svnFile() error {
 
 	var err error
 
-	log.Printf("svnFile [%s|%s] [%s]\n", fn.Root, fn.Path, fn.Revision)
+	log.Printf("svnFile fn.Root [%s] fn.Path [%s] fn.Revision [%s]\n", fn.Root, fn.Path, fn.Revision)
 
 	if fn.Revision == "" || fn.Revision == "HEAD" {
 		fn.Content, err = exec.Command("svnlook", "cat", fn.Root, fn.Path).Output()
 	} else {
 		fn.Content, err = exec.Command("svnlook", "-r", fn.Revision, "cat", fn.Root, fn.Path).Output()
-
 	}
+
+	log.Printf("svnFile: fn.Content size %d\n", len(fn.Content))
 
 	return err
 }
@@ -193,12 +201,12 @@ func (fn *FNode) svnDir() error {
 		if strings.HasPrefix(fileName, "index.") {
 			mode = 2
 			fn.Path += "/" + fileName
-			fn.Type = "file"
+			fn.Type = fileType(fileName)
 		} else if strings.HasPrefix(fileName, "readme.") {
 			if mode == 0 {
 				mode = 1
 				fn.Path += "/" + fileName
-				fn.Type = "readme"
+				fn.Type = fileType(fileName)
 			}
 		}
 	}
@@ -285,7 +293,6 @@ func (fn *FNode) svnLog() error {
 // 'svnlook info' on the other hand doesn't return info on paths, only on releases
 // 'svnlook meta' is a modification that gives info on paths as they are at the time
 // of the release. See https://github.com/rveen/subversion
-//
 func (fn *FNode) svnInfo() *ogdl.Graph {
 
 	path := fn.Path
@@ -309,7 +316,7 @@ func (fn *FNode) svnInfo() *ogdl.Graph {
 	return ogdl.FromBytes(b)
 }
 
-// Return 'dir', 'file', 'document', 'data' or ''
+// Return 'dir', 'file', 'document', 'data' or ”
 func (fn *FNode) svnType() string {
 
 	path := fn.Path
@@ -327,7 +334,7 @@ func (fn *FNode) svnType() string {
 	}
 
 	if err != nil {
-		return ""
+		return "error: svnlook missing?"
 	}
 	if strings.HasPrefix(string(b), "kind dir") {
 		return "dir"
