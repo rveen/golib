@@ -52,6 +52,10 @@ func (fn *FNode) svnGet(path string) error {
 			} else if fn.Type == "data" {
 				fn.data()
 			}
+			if fn.Type != "dir" {
+				fn.Type += "_dir"
+			}
+			log.Printf("svnGet: dir but at the end: %s for path %s\n", fn.Type, fn.Path)
 			return nil
 
 		case "log":
@@ -182,32 +186,36 @@ func (fn *FNode) svnDir() error {
 	dd := ogdl.New(nil)
 
 	path = fn.Path // save path, restore later in case of index.* or readme.*
-	mode := 0      // 0 = dir, 1 = index.*, 2 = readme.*
+	mode := 0      // 1: index, 2: readme
 
 	for _, e := range g.Out {
 		if e.ThisString() != "entry" {
 			continue
 		}
 		fileName := e.Node("name").String()
+
+		// Check if there is a index or readme file in this directory
+		if strings.HasPrefix(fileName, "index.") {
+			mode = 1
+			fn.Path += "/" + fileName
+			fn.Type = fileType(fileName)
+			continue // do not add to dir list
+		} else if strings.HasPrefix(fileName, "readme.") {
+			if mode != 1 {
+				mode = 2
+				fn.Path += "/" + fileName
+				fn.Type = fileType(fileName)
+				continue // do not add to dir list
+			}
+		}
+
+		// Add to directory list (if not index or readme)
 		d := dd.Add(fileName)
 		d.Add("name").Add(fileName)
 		if e.Node("@kind").String() == "dir" {
 			d.Add("type").Add("dir")
 		} else {
 			d.Add("type").Add("file")
-		}
-
-		// Check if there is a index or readme file in this directory
-		if strings.HasPrefix(fileName, "index.") {
-			mode = 2
-			fn.Path += "/" + fileName
-			fn.Type = fileType(fileName)
-		} else if strings.HasPrefix(fileName, "readme.") {
-			if mode == 0 {
-				mode = 1
-				fn.Path += "/" + fileName
-				fn.Type = fileType(fileName)
-			}
 		}
 	}
 
@@ -218,8 +226,6 @@ func (fn *FNode) svnDir() error {
 	}
 
 	fn.Data = dd
-
-	log.Println("svnDir", fn.Root, fn.Path, dd.Text())
 	return nil
 }
 
