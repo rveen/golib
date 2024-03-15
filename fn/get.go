@@ -88,6 +88,13 @@ func (fn *FNode) get(path string, raw bool) error {
 
 	switch fn.Type {
 
+	case "document":
+		if fn.n != len(fn.parts) {
+			// ???
+		}
+		fn.document()
+		return nil
+
 	case "file":
 		if fn.n != len(fn.parts) {
 			return errors.New("404 (extra path after file)")
