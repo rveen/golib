@@ -236,6 +236,58 @@ func (doc *Document) Data() *ogdl.Graph {
 	return eh.Graph()
 }
 
+// Structure returns (only) the headers as OGDL data
+func (doc *Document) Structure() *ogdl.Graph {
+
+	eh := eventhandler.New()
+	doc.ix = 0
+
+	for {
+		s, n := doc.stream.Item(doc.ix)
+
+		if n < 0 {
+			break
+		}
+
+		doc.ix++
+
+		switch s {
+		case "!h":
+			doc.headerToData(eh)
+		}
+	}
+
+	return eh.Graph()
+}
+
+// Compare the structure of two documents.
+// All headers of ref need to be in doc. Order is not important, but nesting is.
+func (doc *Document) CompareStructure(ref *Document) (bool, string) {
+
+	d := doc.Structure()
+	dr := ref.Structure()
+
+	return _compare(d, dr, "")
+}
+
+func _compare(d, dr *ogdl.Graph, s string) (bool, string) {
+
+	r := true
+	// Check that at this level all headers in dr are in d
+	for _, h := range dr.Out {
+		hs := h.ThisString()
+		hr := d.Get(hs)
+		if hr == nil {
+			s += hs + " not found\n"
+			r = false
+		} else {
+			r, s = _compare(hr, h, s)
+		}
+	}
+
+	return r, s
+}
+
 func (doc *Document) Raw() *ogdl.Graph {
 	return doc.g
 }
