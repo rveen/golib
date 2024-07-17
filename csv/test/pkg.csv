@@ -1,0 +1,16 @@
+# These values need to be checked!
+# Source: https://www.vishay.com/docs/53048/pprachp.pdf
+name, rth
+0201, 1000
+0402, 870
+0603, 550
+0508, 440
+0805, 440
+0612, 220
+1206, 220
+1210, 140
+1218, 125
+2010, 110
+1020, 110
+2512, 50
+1225, 50
