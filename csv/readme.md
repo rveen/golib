@@ -27,7 +27,7 @@ items in the first file. It works as follows: any item with a
 map returned contains the items in the first file augmented
 with fields from the rest of the files.
 
-The 'type' field can contain more than one name, form example "type1 type2".
+The 'type' field can contain more than one name, for example "type1 type2".
 Spaces should be used as separators. Names should not contain spaces.
 
 
