@@ -22,9 +22,12 @@ and their values.
 The rest of the files (2...N) are merged to one map of the same
 type as the one for the first file, and act as types for the 
 items in the first file. It works as follows: any item with a
-'type' field (in any file) inherits the fields of the item that
-appears in that field, recursively. That means that the final
+'type' field (in any file) inherits the fields of the item whose
+'name' appears in that field, recursively. That means that the final
 map returned contains the items in the first file augmented
-with fields in the rest of the files.
+with fields from the rest of the files.
+
+The 'type' field can contain more than one name, form example "type1 type2".
+Spaces should be used as separators. Names should not contain spaces.
 
 
