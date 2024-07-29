@@ -92,13 +92,12 @@ func inLine(s string) string {
 //
 // Output format:
 //
-//   !h
-//     1
-//     "Header text"
-//     headerText
+//	!h
+//	  1
+//	  "Header text"
+//	  headerText
 //
 // The second subnode is the normalized string to be used in the data representation
-//
 func header(p *parser.Parser) {
 
 	// Read number of !
@@ -199,9 +198,10 @@ func command(p *parser.Parser) {
 // Output format:
 //
 // !ul
-//   !l1
-//     "item 1"
-//     item1
+//
+//	!l1
+//	  "item 1"
+//	  item1
 //
 // TODO recursive parsing of lists (nested lists can be ul or ol)
 // TODO detect HR (---)
@@ -258,9 +258,10 @@ func list(p *parser.Parser) {
 // Output format:
 //
 // !ul
-//   !l1
-//     "item 1"
-//     item1
+//
+//	!l1
+//	  "item 1"
+//	  item1
 //
 // TODO recursive parsing of lists (nested lists can be ul or ol)
 // TODO detect HR (---)
@@ -313,7 +314,6 @@ func nlist(p *parser.Parser) {
 //
 // - If ||, first column is key
 // - If separation line is present, first row is key
-//
 func table(p *parser.Parser) {
 
 	p.Emit("!tb")
@@ -349,7 +349,7 @@ func table(p *parser.Parser) {
 		s = strings.TrimSpace(s)
 
 		// Clean the last | because of strings.Split behavior
-		if s[len(s)-1] == '|' {
+		if len(s) > 0 && s[len(s)-1] == '|' {
 			s = s[:len(s)-1]
 		}
 
