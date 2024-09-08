@@ -21,8 +21,10 @@ and their values.
 
 The rest of the files (2...N) are merged to one map of the same
 type as the one for the first file, and act as types for the 
-items in the first file. It works as follows: any item with a
-'type' field (in any file) inherits the fields of the item whose
+items in the first file. It works as follows: 
+
+- any item with the same 'name' will have its fields merged.
+- any item with a 'type' field (in any file) inherits the fields of the item whose
 'name' appears in that field, recursively. That means that the final
 map returned contains the items in the first file augmented
 with fields from the rest of the files.
