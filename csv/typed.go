@@ -1,7 +1,6 @@
 package csv
 
 import (
-	"log"
 	"strings"
 )
 
@@ -127,7 +126,9 @@ func addTypeData(item map[string]string, ix map[string]map[string]string) {
 
 		typeObj := ix[typ]
 		if typeObj == nil {
-			log.Println("type not found", typ)
+			// Item has a type but there is no further info on that type
+			// Type info is not mandatory.
+			continue
 		}
 		addTypeData(typeObj, ix)
 
