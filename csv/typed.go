@@ -19,15 +19,15 @@ func ReadTyped(files []string) map[string]map[string]string {
 		// If an item has a 'type' field, that is used later to
 		// build the type inheritance
 		a, _ := Read(file)
+
 		if len(a) != 0 {
 			aa = append(aa, a)
 		}
 	}
 
-	if len(aa) < 2 {
+	if len(aa) == 0 {
 		return nil
 	}
-
 
 	// First: flatten all aa[] except aa[0]
 	flatten(aa)
@@ -40,7 +40,7 @@ func ReadTyped(files []string) map[string]map[string]string {
 	ix := make(map[string]map[string]string)
 
 	// Index all items and types by name
-	for i:=0; i<2; i++ {
+	for i := 0; i < 2 && i < len(aa); i++ {
 		for _, item := range aa[i] {
 			name := item["name"]
 			if name == "" {
@@ -53,7 +53,7 @@ func ReadTyped(files []string) map[string]map[string]string {
 	// Type inheritance.
 	// Walk through the instances. If a type attribute is found,
 	// look up that type, recursively.
-	
+
 	items := aa[0]
 	ix2 := make(map[string]map[string]string)
 
@@ -72,15 +72,15 @@ func ReadTyped(files []string) map[string]map[string]string {
 // Preserve aa[0]
 func flatten(aa [][]map[string]string) {
 
-	if len(aa)<3 {
+	if len(aa) < 3 {
 		return
 	}
 
 	// First: merge items with same name into aa[1]
-	// 
+	//
 	// Fields from lower indexes into aa take precedence
-	for i:=len(aa)-1;i>1;i-- {
-		for k,vv := range aa[i] {
+	for i := len(aa) - 1; i > 1; i-- {
+		for k, vv := range aa[i] {
 			item := aa[1][k]
 			if item == nil {
 				aa[1][k] = vv
@@ -88,7 +88,7 @@ func flatten(aa [][]map[string]string) {
 			}
 			// range over all the fields in the higher aa
 			// if non existent in lower aa, add
-			for k2,v := range vv {
+			for k2, v := range vv {
 				if item[k2] == "" {
 					item[k2] = v
 				}
@@ -99,22 +99,22 @@ func flatten(aa [][]map[string]string) {
 
 func merge(aa [][]map[string]string) {
 
-	if len(aa)<2 {
+	if len(aa) < 2 {
 		return
 	}
 
-	for k,vv := range aa[1] {
-			item := aa[0][k]
-			if item == nil {
-				continue
+	for k, vv := range aa[1] {
+		item := aa[0][k]
+		if item == nil {
+			continue
+		}
+		// range over all the fields in the higher aa
+		// if non existent in lower aa, add
+		for k2, v := range vv {
+			if item[k2] == "" {
+				item[k2] = v
 			}
-			// range over all the fields in the higher aa
-			// if non existent in lower aa, add
-			for k2,v := range vv {
-				if item[k2] == "" {
-					item[k2] = v
-				}
-			}
+		}
 	}
 }
 
