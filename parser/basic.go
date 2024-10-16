@@ -174,6 +174,45 @@ func (p *Parser) Space() (int, byte) {
 	return spaces + tabs, r
 }
 
+// Space is (0x20|0x09)+. It return the number of spaces found (whether
+// tabs or spaces), and a byte than can have the values 0, ' ' and '\t'
+// indicating mixed, all spaces or all tabs
+// This version is intender for consuming max spaces at most
+func (p *Parser) SpaceMax(max int) (int, byte) {
+
+	spaces := 0
+	tabs := 0
+
+	for {
+		c, ok := p.Byte()
+		if !ok {
+			break
+		}
+		if c != '\t' && c != ' ' {
+			p.UnreadByte()
+			break
+		}
+
+		if c == ' ' {
+			spaces++
+		} else {
+			tabs++
+		}
+		if spaces == max || tabs == max {
+			break
+		}
+	}
+
+	var r byte
+	if tabs == 0 {
+		r = ' '
+	} else if spaces == 0 {
+		r = '\t'
+	}
+
+	return spaces + tabs, r
+}
+
 // Number returns true if it finds a number at the current
 // parser position. It returns also the number found.
 // TODO recognize exp notation ?
