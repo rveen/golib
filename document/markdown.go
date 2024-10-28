@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/rveen/golib/csv"
 	"github.com/rveen/golib/parser"
 	"github.com/rveen/ogdl"
 )
@@ -187,7 +188,13 @@ func quote(p *parser.Parser) {
 
 func command(p *parser.Parser) {
 	s := p.Line()
-	p.Emit(s)
+
+	switch s {
+	case "csv":
+		tableCsv(p)
+	default:
+		p.Emit(s)
+	}
 }
 
 // List processes (eventually) nested lists.
@@ -308,6 +315,46 @@ func nlist(p *parser.Parser) {
 	}
 
 	p.Dec()
+}
+
+// CSV Table
+//
+// - If ||, first column is key
+// - If separation line is present, first row is key
+func tableCsv(p *parser.Parser) {
+
+	header := true
+
+	for {
+		line := strings.TrimSpace(p.Line())
+
+		if line == "" {
+			return
+		}
+
+		// Header
+
+		if header {
+			ss := csv.Split(line)
+
+			p.Emit("!tr")
+			p.Inc()
+			for _, s := range ss {
+				p.Emit(s)
+			}
+			continue
+		}
+
+		// Data line
+
+		ss := csv.Split(line)
+
+		p.Emit("!tr")
+		p.Inc()
+		for _, s := range ss {
+			p.Emit(s)
+		}
+	}
 }
 
 // Table

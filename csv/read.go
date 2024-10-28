@@ -16,7 +16,7 @@ func contains(tags []string, tag string) bool {
 	return false
 }
 
-func split(s string) []string {
+func Split(s string) []string {
 	res := []string{}
 	var beg int
 	var inString bool
@@ -52,7 +52,7 @@ func Read(file string) ([]map[string]string, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line[0] != '#' {
-			data = append(data, split(line))
+			data = append(data, Split(line))
 		}
 	}
 
@@ -101,7 +101,7 @@ func ReadString(in string) ([]map[string]string, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line[0] != '#' {
-			data = append(data, split(line))
+			data = append(data, Split(line))
 		}
 	}
 
