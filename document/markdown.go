@@ -12,9 +12,9 @@ import (
 var (
 	anchor = regexp.MustCompile(`{#\w+}`)
 	typ    = regexp.MustCompile(`{!\w+}`)
-	link   = regexp.MustCompile(`\[(.+)\]\((.+)\)`)
-	link2  = regexp.MustCompile(`\[\]\((.+)\)`)
-	img    = regexp.MustCompile(`!\[(.+)\]\( *([^ ]+) *(.*)\)`)
+	link   = regexp.MustCompile(`\[([^\]]+)\]\(([^\)]+)\)`)
+	link2  = regexp.MustCompile(`\[\]\(([^\)]+)\)`)
+	img    = regexp.MustCompile(`!\[([^\]]+)\]\( *([^ ]+) *([^\)]*)\)`)
 	img2   = regexp.MustCompile(`!\[\]\( *([^ ]+) *(.*)\)`)
 
 	// Not complete: * should not be followed by space
@@ -189,12 +189,22 @@ func quote(p *parser.Parser) {
 func command(p *parser.Parser) {
 	s := p.Line()
 
-	switch s {
-	case "csv":
-		tableCsv(p)
-	default:
-		p.Emit(s)
+	if s == ".csv" {
+		tableCsv(p, "")
+		return
 	}
+
+	if strings.HasPrefix(s, ".csv ") {
+		ss := strings.Fields(s)
+		if len(ss) > 1 {
+			tableCsv(p, ss[1])
+		} else {
+			tableCsv(p, "")
+		}
+		return
+	}
+
+	p.Emit(s)
 }
 
 // List processes (eventually) nested lists.
@@ -321,40 +331,62 @@ func nlist(p *parser.Parser) {
 //
 // - If ||, first column is key
 // - If separation line is present, first row is key
-func tableCsv(p *parser.Parser) {
+func tableCsv(p *parser.Parser, hmode string) {
 
 	header := true
+
+	p.Emit("!tb")
+	p.Inc()
 
 	for {
 		line := strings.TrimSpace(p.Line())
 
 		if line == "" {
-			return
+			break
 		}
+
+		ss := csv.Split(line)
 
 		// Header
 
 		if header {
-			ss := csv.Split(line)
 
 			p.Emit("!tr")
 			p.Inc()
 			for _, s := range ss {
-				p.Emit(s)
+				k, v := getKey(s)
+				p.Emit(v)
+				p.Inc()
+				p.Emit(k)
+				p.Dec()
+				// p.Emit(strings.TrimSpace(s))
 			}
+			p.Dec()
+			header = false
 			continue
 		}
 
 		// Data line
 
-		ss := csv.Split(line)
-
 		p.Emit("!tr")
 		p.Inc()
 		for _, s := range ss {
-			p.Emit(s)
+			p.Emit(strings.TrimSpace(s))
 		}
+		p.Dec()
 	}
+
+	switch hmode {
+	case "hrow", "", "h":
+		p.Emit("!hrow")
+	case "hcol", "v":
+		p.Emit("!hcol")
+	case "hboth", "hv":
+		p.Emit("!hrow")
+		p.Emit("!hcol")
+	}
+
+	p.Dec()
 }
 
 // Table
