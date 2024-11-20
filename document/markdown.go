@@ -18,8 +18,8 @@ var (
 	img2   = regexp.MustCompile(`!\[\]\( *([^ ]+) *(.*)\)`)
 
 	// Not complete: * should not be followed by space
-	bold   = regexp.MustCompile(`\*\*(.+)\*\*`)
-	italic = regexp.MustCompile(`\*(.+)\*`)
+	bold   = regexp.MustCompile(`\*\*([^\*]+)\*\*`)
+	italic = regexp.MustCompile(`\*([^\*]+)\*`)
 )
 
 // Markdown entities:
