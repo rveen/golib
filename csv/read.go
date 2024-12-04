@@ -18,22 +18,34 @@ func contains(tags []string, tag string) bool {
 
 func Split(s string) []string {
 	res := []string{}
-	var beg int
-	var inString bool
+
+	var qstart int
+	start := 0
+	inString := false
+	clean := false
 
 	for i := 0; i < len(s); i++ {
 		if s[i] == ',' && !inString {
-			res = append(res, s[beg:i])
-			beg = i + 1
+
+			// Remove quotes
+			if clean {
+				res = append(res, s[qstart+1:i-1])
+				clean = false
+			} else {
+				res = append(res, s[start:i])
+			}
+			start = i + 1
 		} else if s[i] == '"' {
 			if !inString {
+				qstart = i
 				inString = true
 			} else if i > 0 && s[i-1] != '\\' {
 				inString = false
+				clean = true
 			}
 		}
 	}
-	return append(res, s[beg:])
+	return append(res, s[start:])
 }
 
 // Read a CVS file into and array of maps
