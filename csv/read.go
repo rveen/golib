@@ -45,6 +45,9 @@ func Split(s string) []string {
 			}
 		}
 	}
+	if clean {
+		return append(res, s[qstart+1:len(s)-1])
+	}
 	return append(res, s[start:])
 }
 

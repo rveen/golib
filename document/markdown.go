@@ -345,6 +345,10 @@ func tableCsv(p *parser.Parser, hmode string) {
 			break
 		}
 
+		if line[0] == '#' {
+			continue
+		}
+
 		ss := csv.Split(line)
 
 		// Header
