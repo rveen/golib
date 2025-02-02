@@ -87,11 +87,13 @@ func (fn *FNode) stat(path string) (fs.FileInfo, error) {
 
 	// io.fs (possibly embedded)
 	f, err := fn.RootFs.Open(ioPathClean(path))
-	defer f.Close()
 
 	if err != nil {
+		log.Println(err.Error())
 		return nil, err
 	}
+
+	defer f.Close()
 
 	return f.Stat()
 
