@@ -130,10 +130,13 @@ func header(p *parser.Parser) {
 	}
 
 	// The rest of the line is the header
-	b := []byte{'0'}
+	b := []byte{'0'}	// title
 	if !title {
-		b[0] += byte(n)
+		b[0] += byte(n)	// header
+	} else if n>1 {
+		b[0] = 'h'		// subtitle
 	}
+
 	p.Emit("!h")
 	p.Inc()
 	// h0 = title, h1...h6 = header
@@ -201,6 +204,15 @@ func command(p *parser.Parser) {
 		} else {
 			tableCsv(p, "")
 		}
+		return
+	}
+
+	if strings.HasPrefix(s, ".var ") {
+		v := strings.TrimSpace(s[4:])
+		p.Emit("!var")
+		p.Inc()
+		p.Emit(v)
+		p.Dec()
 		return
 	}
 

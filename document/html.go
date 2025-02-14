@@ -43,6 +43,12 @@ func headerToHtml(n *ogdl.Graph, sb *strings.Builder, hh *headers, urlbase strin
 		return
 	}
 
+	// If subtitle
+	if h == "h" {
+		sb.WriteString("<div class='subtitle'>" + text + "</div>\n")
+		return
+	}
+
 	if n.Len() == 2 {
 		// TODO What is faster? many sb.WriteString's, Sprintf or this:
 		sb.WriteString("<h" + h + "\">" + text + "</h" + h + ">\n")

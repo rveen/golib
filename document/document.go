@@ -8,6 +8,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"fmt"
 
 	"github.com/rveen/golib/eventhandler"
 	"github.com/rveen/golib/parser"
@@ -19,6 +20,7 @@ type Document struct {
 	g      *ogdl.Graph
 	parts  *ogdl.Graph
 	ix     int
+	Context    *ogdl.Graph // Context to solver variables
 }
 
 // New parses a markdown+ text string and returnes a Document object.
@@ -78,10 +80,39 @@ func (doc *Document) Html() string {
 			tableToHtml(n, &sb)
 		case ".nh":
 			numbered = true
+		case "!var":
+			sb.WriteString(variable(n.String(),doc.Context))
 		}
 	}
 
 	return sb.String()
+}
+
+func variable(v string, ctx *ogdl.Graph) string {
+
+	if ctx == nil {
+		return ""
+	}
+
+	e := ogdl.NewExpression(v)
+	r, _ := ctx.Eval(e)
+	return _string(r)
+}
+
+func _string(i interface{}) string {
+	if i == nil {
+		return ""
+	}
+	if v, ok := i.([]byte); ok {
+		return string(v)
+	}
+	if v, ok := i.(string); ok {
+		return v
+	}
+	if v, ok := i.(*ogdl.Graph); ok {
+		return v.String()
+	}
+	return fmt.Sprint(i)
 }
 
 // Html returnes the Document in HTML format
@@ -119,6 +150,8 @@ func (doc *Document) HtmlWithLinks(urlbase string) string {
 			tableToHtml(n, &sb)
 		case ".nh":
 			numbered = true
+		case "!var":
+			sb.WriteString(variable(n.String(),doc.Context))
 		}
 	}
 
@@ -181,7 +214,7 @@ func (doc *Document) Part(path string) *Document {
 
 	part := doc.parts.Get(path)
 	if part == nil || part.Len() == 0 {
-		return &Document{nil, nil, nil, 0}
+		return &Document{}
 	}
 
 	start := int(part.Get("_start").Int64())
@@ -205,7 +238,7 @@ func (doc *Document) Part(path string) *Document {
 	g := ogdl.New(nil)
 	g.Out = doc.g.Out[start:end]
 
-	return &Document{nil, g, nil, 0}
+	return &Document{parts:g}
 }
 
 // Data returns the Document as OGDL data
