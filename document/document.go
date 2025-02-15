@@ -200,10 +200,12 @@ func (doc *Document) Part(path string) *Document {
 
 	// This assumes that the Doc is a constant (generated once)
 	if doc.parts == nil {
+
 		eh := eventhandler.New()
 
 		for i, n := range doc.g.Out {
 			s := n.ThisString()
+
 			switch s {
 			case "!h":
 				headerToPart(n, eh, i)
@@ -238,7 +240,7 @@ func (doc *Document) Part(path string) *Document {
 	g := ogdl.New(nil)
 	g.Out = doc.g.Out[start:end]
 
-	return &Document{parts:g}
+	return &Document{g:g}
 }
 
 // Data returns the Document as OGDL data
