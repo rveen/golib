@@ -5,10 +5,9 @@
 package document
 
 import (
-	"log"
+	"fmt"
 	"strconv"
 	"strings"
-	"fmt"
 
 	"github.com/rveen/golib/eventhandler"
 	"github.com/rveen/golib/parser"
@@ -16,11 +15,11 @@ import (
 )
 
 type Document struct {
-	stream *eventhandler.EventHandler
-	g      *ogdl.Graph
-	parts  *ogdl.Graph
-	ix     int
-	Context    *ogdl.Graph // Context to solver variables
+	stream  *eventhandler.EventHandler
+	g       *ogdl.Graph
+	parts   *ogdl.Graph
+	ix      int
+	Context *ogdl.Graph // Context to solver variables
 }
 
 // New parses a markdown+ text string and returnes a Document object.
@@ -81,7 +80,7 @@ func (doc *Document) Html() string {
 		case ".nh":
 			numbered = true
 		case "!var":
-			sb.WriteString(variable(n.String(),doc.Context))
+			sb.WriteString(variable(n.String(), doc.Context))
 		}
 	}
 
@@ -151,16 +150,17 @@ func (doc *Document) HtmlWithLinks(urlbase string) string {
 		case ".nh":
 			numbered = true
 		case "!var":
-			sb.WriteString(variable(n.String(),doc.Context))
+			sb.WriteString(variable(n.String(), doc.Context))
 		}
 	}
 
 	return sb.String()
 }
 
+// TODO: Re-visit numbering
 func isNumbered(text string) bool {
-	log.Printf("header [%s]\n", text)
-	return strings.HasPrefix(text, "1. ")
+	// return strings.HasPrefix(text, "1. ")
+	return false
 }
 
 // Html returnes the Document in HTML format, but skip the first header
@@ -240,7 +240,7 @@ func (doc *Document) Part(path string) *Document {
 	g := ogdl.New(nil)
 	g.Out = doc.g.Out[start:end]
 
-	return &Document{g:g}
+	return &Document{g: g}
 }
 
 // Data returns the Document as OGDL data

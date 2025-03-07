@@ -285,6 +285,8 @@ func (fn *FNode) info() string {
 		}
 	}
 
+	log.Printf("fn.Path: %s\n", fn.Path)
+
 	if err != nil {
 
 		// If the path has an extension, then return "".
