@@ -15,6 +15,15 @@ type Db struct {
 	Db *sql.DB
 }
 
+func Open(typ, uri string) (*Db, error) {
+
+	var db Db
+	var err error
+
+	db.Db, err = sql.Open(typ, uri)
+	return &db, err
+}
+
 func (db *Db) Open(typ, uri string) error {
 	var err error
 
@@ -116,8 +125,6 @@ func (db *Db) Query(q string) *ogdl.Graph {
 	}
 	defer rows.Close()
 
-	r := ogdl.New(nil)
-
 	if err != nil {
 		log.Println("Error reading rows: " + err.Error())
 		return nil
@@ -126,6 +133,7 @@ func (db *Db) Query(q string) *ogdl.Graph {
 
 	cols, _ := rows.Columns()
 
+	r := ogdl.New(nil)
 	c := r.Add("columns")
 	for _, col := range cols {
 		c.Add(col)
@@ -143,7 +151,8 @@ func (db *Db) Query(q string) *ogdl.Graph {
 		err := rows.Scan(values...)
 
 		if err != nil {
-			log.Println("Error reading rows: " + err.Error())
+			log.Println(err)
+			continue
 		}
 
 		n := rr.Add("-")
@@ -170,6 +179,7 @@ func (db *Db) Query(q string) *ogdl.Graph {
 	return r
 }
 
+// Add column names to all results
 func (db *Db) Query2(q string) *ogdl.Graph {
 
 	if db.Db == nil {
@@ -183,8 +193,6 @@ func (db *Db) Query2(q string) *ogdl.Graph {
 	}
 	defer rows.Close()
 
-	r := ogdl.New(nil)
-
 	if err != nil {
 		log.Println("Error reading rows: " + err.Error())
 		return nil
@@ -193,6 +201,7 @@ func (db *Db) Query2(q string) *ogdl.Graph {
 
 	cols, _ := rows.Columns()
 
+	r := ogdl.New(nil)
 	c := r.Add("columns")
 	for _, col := range cols {
 		c.Add(col)
@@ -210,7 +219,8 @@ func (db *Db) Query2(q string) *ogdl.Graph {
 		err := rows.Scan(values...)
 
 		if err != nil {
-			log.Println("Error reading rows: " + err.Error())
+			log.Println(err)
+			continue
 		}
 
 		n := rr.Add("-")
@@ -234,4 +244,107 @@ func (db *Db) Query2(q string) *ogdl.Graph {
 	}
 
 	return r
+}
+
+// Return all results in a list of lists and a separated list of columns
+func (db *Db) QueryToList(q string) ([][]string, []string) {
+
+	rows, err := db.Db.Query(q)
+	if err != nil {
+		return nil, nil
+	}
+	defer rows.Close()
+
+	cols, _ := rows.Columns()
+
+	var r [][]string
+
+	for rows.Next() {
+
+		values := make([]interface{}, len(cols))
+
+		for i := 0; i < len(cols); i++ {
+			values[i] = new(sql.NullString)
+		}
+
+		err := rows.Scan(values...)
+
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		a := make([]*sql.NullString, len(cols))
+		var ok bool
+
+		for i := 0; i < len(cols); i++ {
+			a[i], ok = values[i].(*sql.NullString)
+			if !ok {
+				log.Printf("error: failed to convert type %T [%d]\n", values[i], i)
+			}
+		}
+
+		var vv []string
+		for _, v := range a {
+			vv = append(vv, v.String)
+		}
+
+		r = append(r, vv)
+
+	}
+
+	return r, cols
+}
+
+// Return 1 result (the query should return 1 in the first place)
+func (db *Db) Query1ToMap(q string) map[string]string {
+
+	rows, err := db.Db.Query(q)
+	if err != nil {
+		log.Println(err.Error())
+		return nil
+	}
+	defer rows.Close()
+
+	cols, _ := rows.Columns()
+
+	for rows.Next() {
+
+		values := make([]interface{}, len(cols))
+
+		for i := 0; i < len(cols); i++ {
+			values[i] = new(sql.NullString)
+		}
+
+		err := rows.Scan(values...)
+
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		a := make([]*sql.NullString, len(cols))
+		var ok bool
+
+		for i := 0; i < len(cols); i++ {
+			a[i], ok = values[i].(*sql.NullString)
+			if !ok {
+				log.Printf("error: failed to convert type %T [%d]\n", values[i], i)
+			}
+		}
+
+		var vv []string
+		for _, v := range a {
+			vv = append(vv, v.String)
+		}
+
+		m := make(map[string]string)
+		for i, col := range cols {
+			m[col] = vv[i]
+		}
+		return m
+
+	}
+
+	return nil
 }
