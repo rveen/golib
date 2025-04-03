@@ -130,7 +130,6 @@ func headerToHtml(n *ogdl.Graph, sb *strings.Builder, hh *headers, urlbase strin
 // 2 1
 // 2 "item 3"
 // 2 item3
-//
 func (doc *Document) listToHtml(sb *strings.Builder, level int) {
 
 	sb.WriteString("<ul>\n")
@@ -284,6 +283,12 @@ func (doc *Document) tableToHtml(sb *strings.Builder) {
 			continue
 		}
 
+		log.Printf("hrow %v, row %d\n", hrow, row)
+
+		if hrow && row == 0 {
+			sb.WriteString("<thead>\n")
+		}
+
 		sb.WriteString("<tr>\n")
 
 		col := 0
@@ -309,6 +314,11 @@ func (doc *Document) tableToHtml(sb *strings.Builder) {
 		}
 
 		sb.WriteString("</tr>\n")
+
+		if hrow && row == 0 {
+			sb.WriteString("</thead>\n")
+		}
+
 		row++
 	}
 
@@ -350,6 +360,10 @@ func tableToHtml(n *ogdl.Graph, sb *strings.Builder) {
 			continue
 		}
 
+		if hrow && row == 0 {
+			sb.WriteString("<thead>\n")
+		}
+
 		sb.WriteString("<tr>\n")
 
 		col := 0
@@ -369,6 +383,11 @@ func tableToHtml(n *ogdl.Graph, sb *strings.Builder) {
 		}
 
 		sb.WriteString("</tr>\n")
+
+		if hrow && row == 0 {
+			sb.WriteString("</thead>\n")
+		}
+
 		row++
 	}
 
