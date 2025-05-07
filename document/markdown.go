@@ -130,11 +130,11 @@ func header(p *parser.Parser) {
 	}
 
 	// The rest of the line is the header
-	b := []byte{'0'}	// title
+	b := []byte{'0'} // title
 	if !title {
-		b[0] += byte(n)	// header
-	} else if n>1 {
-		b[0] = 'h'		// subtitle
+		b[0] += byte(n) // header
+	} else if n > 1 {
+		b[0] = 'h' // subtitle
 	}
 
 	p.Emit("!h")
@@ -213,6 +213,11 @@ func command(p *parser.Parser) {
 		p.Inc()
 		p.Emit(v)
 		p.Dec()
+		return
+	}
+
+	if s == ".bp" {
+		p.Emit("<div class='pagebreak'></div>")
 		return
 	}
 

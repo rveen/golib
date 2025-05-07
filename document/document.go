@@ -81,6 +81,8 @@ func (doc *Document) Html() string {
 			numbered = true
 		case "!var":
 			sb.WriteString(variable(n.String(), doc.Context))
+		default:
+			sb.WriteString(s)
 		}
 	}
 
