@@ -433,7 +433,7 @@ func table(p *parser.Parser) {
 		}
 		p.Byte()
 		s := p.Line()
-		if s == "" {
+		if len(s) < 3 {
 			continue
 		}
 
@@ -441,7 +441,10 @@ func table(p *parser.Parser) {
 			tableV = true
 			s = s[1:]
 		}
-		if strings.HasPrefix(s, "---") {
+		if s[0] == ' ' {
+			s = s[1:]
+		}
+		if strings.HasPrefix(s, "---") || strings.HasPrefix(s, ":---") {
 			tableH = true
 			continue
 		}

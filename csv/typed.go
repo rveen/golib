@@ -1,7 +1,8 @@
 package csv
 
 import (
-	"strings"
+	"fmt"
+	// "strings"
 )
 
 // First file is the instance list of items, the rest of the
@@ -29,127 +30,125 @@ func ReadTyped(files []string) map[string]map[string]string {
 		return nil
 	}
 
-	// First: flatten all aa[] except aa[0]
-	flatten(aa)
+	// Before flattening we want to remember what are the (main) items,
+	// those that appear in the first file
+	items := make(map[string]bool)
+	for _, o := range aa[0] {
+		items[o["name"]] = true
+	}
 
-	// We have items in aa[0] and augmented info in aa[1]
-	// Now we want to augment items in aa[0] with items with
-	// the same name in aa[1]
-	merge(aa)
+	// This returns all rows of all files in one list.
+	// If there where rows with the same name, data is merged (in order, that is
+	// data in lower rows has precedence over higher rows).
+	all := flatten(aa)
 
-	ix := make(map[string]map[string]string)
+	// For each item, do a recursive type augmentation
 
-	// Index all items and types by name
-	for i := 0; i < 2 && i < len(aa); i++ {
-		for _, item := range aa[i] {
-			name := item["name"]
-			if name == "" {
-				continue
-			}
-			ix[name] = item
+	m := make(map[string]map[string]string)
+
+	for _, o := range *all {
+
+		name := o["name"]
+		if items[name] == false {
+			continue
 		}
+
+		typ := o["type"]
+
+		addTypeInfo(typ, o, all)
+		m[o["name"]] = o
 	}
 
-	// Type inheritance.
-	// Walk through the instances. If a type attribute is found,
-	// look up that type, recursively.
-
-	items := aa[0]
-	ix2 := make(map[string]map[string]string)
-
-	for _, item := range items {
-		addTypeData(item, ix)
-	}
-
-	for _, item := range items {
-		ix2[item["name"]] = item
-	}
-
-	return ix2
+	return m
 }
 
 // Flatten aa[1...]
 // Preserve aa[0]
-func flatten(aa [][]map[string]string) {
-
-	if len(aa) < 3 {
-		return
-	}
-
-	// First: merge items with same name into aa[1]
-	//
-	// Fields from lower indexes into aa take precedence
-	for i := len(aa) - 1; i > 1; i-- {
-		for k, vv := range aa[i] {
-			item := aa[1][k]
-			if item == nil {
-				aa[1][k] = vv
-				continue
-			}
-			// range over all the fields in the higher aa
-			// if non existent in lower aa, add
-			for k2, v := range vv {
-				if item[k2] == "" {
-					item[k2] = v
-				}
-			}
-		}
-	}
-}
-
-func merge(aa [][]map[string]string) {
+func flatten(aa [][]map[string]string) *[]map[string]string {
 
 	if len(aa) < 2 {
-		return
+		return &aa[0]
 	}
 
-	for k, vv := range aa[1] {
-		item := aa[0][k]
-		if item == nil {
-			continue
+	f1 := aa[len(aa)-1]
+
+	// Fields from lower indexes into aa take precedence
+	// So merge down
+	for i := len(aa) - 1; i > 0; i-- {
+		f0 := aa[i-1]
+
+		for _, row := range f0 {
+			name := row["name"]
+
+			// add to or merge into file0
+			found := false
+			for _, row1 := range f1 {
+				name1 := row1["name"]
+				if name == name1 {
+					found = true
+
+					for k, v := range row {
+						if k == "tags" {
+							row1[k] += " " + v
+						} else {
+							row1[k] = v
+						}
+					}
+
+					break
+				}
+			}
+			if !found {
+				f1 = append(f1, row)
+			}
 		}
-		// range over all the fields in the higher aa
-		// if non existent in lower aa, add
-		for k2, v := range vv {
-			if item[k2] == "" {
-				item[k2] = v
+	}
+	return &f1
+}
+
+func addTypeInfo(typ string, o map[string]string, tt *[]map[string]string) {
+
+	for _, t := range *tt {
+		name := t["name"]
+		if typ == name {
+
+			ttyp := t["type"]
+			if ttyp != "" {
+				addTypeInfo(ttyp, o, tt)
+			}
+
+			for k, v := range t {
+				if k == "tags" || k == "type" {
+					o[k] += o[k] + " " + v
+				} else if o[k] == "" {
+					o[k] = v
+				}
 			}
 		}
 	}
 }
 
-func addTypeData(item map[string]string, ix map[string]map[string]string) {
+func printlm(aa *[][]map[string]string) {
 
-	types := strings.Fields(item["type"])
-
-	for _, typ := range types {
-
-		typeObj := ix[typ]
-		if typeObj == nil {
-			// Item has a type but there is no further info on that type
-			// Type info is not mandatory.
-			continue
-		}
-		addTypeData(typeObj, ix)
-
-		// Add all *new* fields of typeObj to item, except name and type
-		// tags are appended.
-		for k, v := range typeObj {
-			if k == "name" || k == "type" {
-				continue
-			}
-			if k == "tags" {
-				tags := item["tags"]
-				if tags != "" {
-					item[k] = tags + " " + v
-				} else {
-					item[k] = v
-				}
-			} else {
-				if item[k] == "" {
-					item[k] = v
-				}
+	for i, file := range *aa {
+		fmt.Printf("file %d\n", i)
+		for j, row := range file {
+			fmt.Printf("  row %d\n", j)
+			for k, v := range row {
+				fmt.Printf("    %s = %s\n", k, v)
 			}
 		}
 	}
+	fmt.Println("------")
+}
+
+func printll(aa *[]map[string]string) {
+
+	for j, row := range *aa {
+		fmt.Printf("  row %d\n", j)
+		for k, v := range row {
+			fmt.Printf("    %s = %s\n", k, v)
+		}
+	}
+	fmt.Println("------")
 }
