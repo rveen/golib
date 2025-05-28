@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/rveen/golib/id"
 	"github.com/rveen/ogdl"
 )
 
@@ -290,12 +291,21 @@ func (fn *FNode) info() string {
 	if err != nil {
 
 		// If the path has an extension, then return "".
-		// If not, check some standard extensions that can be assumed
-		// (.html, .htm, .md and .ogdl)
 
 		if filepath.Ext(fn.Path) != "" {
 			return ""
 		}
+
+		// If the last elements is apparently an ID, do not try to add extensions,
+		// just return not found
+
+		if id.IsUniqueID(filepath.Base(fn.Path)) {
+			return ""
+		}
+
+		// If not, check some standard extensions that can be assumed
+		// (.html, .htm, .md and .ogdl)
+
 		for _, ext := range exts {
 			f, err = fn.stat(fn.Path + ext)
 			if err == nil {
