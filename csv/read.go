@@ -29,7 +29,11 @@ func Split(s string) []string {
 
 			// Remove quotes
 			if clean {
-				res = append(res, s[qstart+1:i-1])
+				j := i
+				for j >= 0 && s[j] != '"' {
+					j--
+				}
+				res = append(res, s[qstart+1:j])
 				clean = false
 			} else {
 				res = append(res, s[start:i])
@@ -89,8 +93,7 @@ func Read(file string) ([]map[string]string, error) {
 		r := make(map[string]string)
 
 		for j := 0; j < len(l); j++ {
-			// Clean up (remove space and convert to lower case)
-			// value := strings.ToLower(strings.TrimSpace(l[j]))
+			// Clean up (remove space)
 			value := strings.TrimSpace(l[j])
 			if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
 				value = value[1 : len(value)-1]
