@@ -46,16 +46,16 @@ func Load(file string) (*ogdl.Graph, error) {
 				s = s[0 : len(s)-1]
 			}
 
-			section = s
-			gs = g.Add(section)
-			gs = gs
-			rawTest = true
-
 			if og != "" {
 				n := ogdl.FromString(og)
 				gs.AddNodes(n)
 				og = ""
 			}
+
+			section = s
+			gs = g.Add(section)
+
+			rawTest = true
 
 			continue
 		}
@@ -90,6 +90,12 @@ func Load(file string) (*ogdl.Graph, error) {
 
 	if err := scanner.Err(); err != nil {
 		return nil, err
+	}
+
+	if og != "" {
+		n := ogdl.FromString(og)
+		gs.AddNodes(n)
+		og = ""
 	}
 
 	return g, nil
