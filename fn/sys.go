@@ -59,7 +59,6 @@ func (fn *FNode) index() bool {
 		if strings.HasPrefix(name, "index.") || strings.HasPrefix(name, "readme.") {
 			fn.Path += "/" + name
 			fn.Type = fn.fileType()
-			// log.Println("fn.index: index found", fn.Path, fn.Type)
 			return true
 		}
 	}
@@ -90,7 +89,6 @@ func (fn *FNode) stat(path string) (fs.FileInfo, error) {
 	f, err := fn.RootFs.Open(ioPathClean(path))
 
 	if err != nil {
-		log.Println(err.Error())
 		return nil, err
 	}
 
@@ -278,6 +276,8 @@ func (fn *FNode) info() string {
 
 	f, err := fn.stat(fn.Path)
 
+	// log.Printf("fn.Path %s found? %v\n", fn.Path, err == nil)
+
 	if err == nil {
 		if f.IsDir() {
 			return fn.dirType()
@@ -286,32 +286,27 @@ func (fn *FNode) info() string {
 		}
 	}
 
-	log.Printf("fn.Path: %s\n", fn.Path)
+	// If the path has an extension, then return "".
 
-	if err != nil {
+	if filepath.Ext(fn.Path) != "" {
+		return ""
+	}
 
-		// If the path has an extension, then return "".
+	// If the last elements is apparently an ID, do not try to add extensions,
+	// just return not found
 
-		if filepath.Ext(fn.Path) != "" {
-			return ""
-		}
+	if id.IsUniqueID(filepath.Base(fn.Path)) {
+		return ""
+	}
 
-		// If the last elements is apparently an ID, do not try to add extensions,
-		// just return not found
+	// If not, check some standard extensions that can be assumed
+	// (.html, .htm, .md and .ogdl)
 
-		if id.IsUniqueID(filepath.Base(fn.Path)) {
-			return ""
-		}
-
-		// If not, check some standard extensions that can be assumed
-		// (.html, .htm, .md and .ogdl)
-
-		for _, ext := range exts {
-			f, err = fn.stat(fn.Path + ext)
-			if err == nil {
-				fn.Path += ext
-				return fn.fileType()
-			}
+	for _, ext := range exts {
+		f, err = fn.stat(fn.Path + ext)
+		if err == nil {
+			fn.Path += ext
+			return fn.fileType()
 		}
 	}
 

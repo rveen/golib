@@ -76,6 +76,7 @@ func (fn *FNode) get(path string, raw bool) error {
 			fn.dir()
 
 			genericPart := fn.generic()
+
 			if genericPart == "" {
 				if !fn.index() {
 					return errors.New("404")
