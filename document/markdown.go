@@ -82,7 +82,8 @@ func inLine(s string) string {
 	s = strings.ReplaceAll(s, "___?", "<input class='form-control' type='text'/>")
 	s = strings.ReplaceAll(s, "_ok_?", "<input class='btn btn-primary' type='submit' value='Submit'>")
 
-	s = strings.ReplaceAll(s, ">-implements</a>", "><button class='btn btn-sm btn-info'>Implements</button></a>")
+	s = strings.ReplaceAll(s, ">-implements</a>", "><img class='icon' src='/static/icons/bl/arrow-right.svg'><img class='icon' src='/static/icons/bl/implements.svg'></a>")
+	s = strings.ReplaceAll(s, ">-tests</a>", "><img class='icon' src='/static/icons/bl/arrow-left.svg'><img class='icon' src='/static/icons/bl/tests.svg'></a>")
 
 	return s
 }

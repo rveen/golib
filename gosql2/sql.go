@@ -1,7 +1,8 @@
-package gosql
+package gosql2
 
 import (
 	"database/sql"
+	"errors"
 	"log"
 	"strings"
 
@@ -12,35 +13,90 @@ import (
 )
 
 type Db struct {
-	Db *sql.DB
+	dbs map[string]*Db1
 }
 
-func Open(typ, uri string) (*Db, error) {
-
-	var db Db
-	var err error
-
-	db.Db, err = sql.Open(typ, uri)
-	return &db, err
+type Db1 struct {
+	name   string
+	driver string
+	uri    string
+	Db     *sql.DB
 }
 
-func (db *Db) Open(typ, uri string) error {
-	var err error
+func New(cfg *ogdl.Graph) *Db {
 
-	if db.Db != nil {
-		db.Close()
+	var dbs Db
+	dbs.dbs = make(map[string]*Db1)
+
+	dd := cfg.Node("databases")
+	for _, d := range dd.Out {
+		db := &Db1{}
+		db.name = d.ThisString()
+		db.driver = d.Node("driver").String()
+		db.uri = d.Node("uri").String()
+		dbs.dbs[db.name] = db
+		log.Printf("database %s added\n", db.name)
 	}
 
-	db.Db, err = sql.Open(typ, uri)
+	return &dbs
+}
+
+// Single db
+func NewDb(d *ogdl.Graph) *Db {
+	if d == nil {
+		return nil
+	}
+
+	var dbs Db
+	dbs.dbs = make(map[string]*Db1)
+
+	db := &Db1{}
+	db.name = d.ThisString()
+	db.driver = d.Node("driver").String()
+	db.uri = d.Node("uri").String()
+	dbs.dbs[db.name] = db
+	log.Printf("database %s added\n", db.name)
+
+	return &dbs
+}
+
+func (db *Db) open(name string) error {
+
+	var err error
+
+	db1 := db.dbs[name]
+	if db1 == nil {
+		return errors.New("no database defined in config.ogdl with name " + name)
+	}
+
+	db1.Db, err = sql.Open(db1.driver, db1.uri)
 	return err
 }
 
-func (db *Db) Close() {
-	db.Db.Close()
-	db.Db = nil
+func (db *Db) ExecSql(name, q string) (sql.Result, error) {
+
+	db1 := db.dbs[name]
+	if db1 == nil {
+		return nil, errors.New("no database defined in config.ogdl with name " + name)
+	}
+
+	if db1.Db == nil {
+		db.open(name)
+	}
+
+	return db1.Db.Exec(q)
 }
 
-func (db *Db) Exec(g *ogdl.Graph) error {
+func (db *Db) Exec(name string, g *ogdl.Graph) error {
+
+	db1 := db.dbs[name]
+	if db1 == nil {
+		return errors.New("no database defined in config.ogdl with name " + name)
+	}
+
+	if db1.Db == nil {
+		db.open(name)
+	}
 
 	var err error
 
@@ -90,35 +146,42 @@ func (db *Db) Exec(g *ogdl.Graph) error {
 		q := "replace into " + tb + " (" + fields + ") values (" + values + ")"
 		log.Printf("gosql.Exec: %s\n", q)
 
-		_, err = db.Db.Exec(q)
+		_, err = db1.Db.Exec(q)
 	case "insert":
 		q := "insert into " + tb + " (" + fields + ") values (" + values + ")"
 		log.Printf("gosql.Exec: %s\n", q)
-		_, err = db.Db.Exec(q)
+		_, err = db1.Db.Exec(q)
 
 	case "delete":
 		where := g.Node("where").String()
 		q := "delete from " + tb + " where " + where
 		log.Printf("gosql.Exec: %s\n", q)
-		_, err = db.Db.Exec(q)
+		_, err = db1.Db.Exec(q)
 
 	case "update":
 		where := g.Node("where").String()
 		q := "UPDATE " + tb + " SET " + upd + " WHERE " + where
 		log.Printf("gosql.Exec: %s\n", q)
-		_, err = db.Db.Exec(q)
+		_, err = db1.Db.Exec(q)
 	}
 
 	return err
 }
 
-func (db *Db) Query(q string) *ogdl.Graph {
+func (db *Db) Query(name, q string) *ogdl.Graph {
 
-	if db.Db == nil {
+	log.Printf("Query %s: %s\n", name, q)
+
+	db1 := db.dbs[name]
+	if db1 == nil {
 		return nil
 	}
 
-	rows, err := db.Db.Query(q)
+	if db1.Db == nil {
+		db.open(name)
+	}
+
+	rows, err := db1.Db.Query(q)
 	if err != nil {
 		log.Println("Error reading rows: " + err.Error())
 		return nil
@@ -172,6 +235,10 @@ func (db *Db) Query(q string) *ogdl.Graph {
 				v = ns.String
 			}
 
+			if v == "" {
+				v = "_"
+			}
+
 			n.Add(v)
 		}
 	}
@@ -180,13 +247,18 @@ func (db *Db) Query(q string) *ogdl.Graph {
 }
 
 // Add column names to all results
-func (db *Db) Query2(q string) *ogdl.Graph {
+func (db *Db) Query2(name, q string) *ogdl.Graph {
 
-	if db.Db == nil {
+	db1 := db.dbs[name]
+	if db1 == nil {
 		return nil
 	}
 
-	rows, err := db.Db.Query(q)
+	if db1.Db == nil {
+		db.open(name)
+	}
+
+	rows, err := db1.Db.Query(q)
 	if err != nil {
 		log.Println("Error reading rows: " + err.Error())
 		return nil
@@ -247,9 +319,18 @@ func (db *Db) Query2(q string) *ogdl.Graph {
 }
 
 // Return all results in a list of lists and a separated list of columns
-func (db *Db) QueryToList(q string) ([][]string, []string) {
+func (db *Db) QueryToList(name, q string) ([][]string, []string) {
 
-	rows, err := db.Db.Query(q)
+	db1 := db.dbs[name]
+	if db1 == nil {
+		return nil, nil
+	}
+
+	if db1.Db == nil {
+		db.open(name)
+	}
+
+	rows, err := db1.Db.Query(q)
 	if err != nil {
 		return nil, nil
 	}
@@ -297,9 +378,18 @@ func (db *Db) QueryToList(q string) ([][]string, []string) {
 }
 
 // Return 1 result (the query should return 1 in the first place)
-func (db *Db) Query1ToMap(q string) map[string]string {
+func (db *Db) Query1ToMap(name, q string) map[string]string {
 
-	rows, err := db.Db.Query(q)
+	db1 := db.dbs[name]
+	if db1 == nil {
+		return nil
+	}
+
+	if db1.Db == nil {
+		db.open(name)
+	}
+
+	rows, err := db1.Db.Query(q)
 	if err != nil {
 		log.Println(err.Error())
 		return nil
@@ -350,9 +440,18 @@ func (db *Db) Query1ToMap(q string) map[string]string {
 }
 
 // Return 1 result (the query should return 1 in the first place)
-func (db *Db) Query1(q string) *ogdl.Graph {
+func (db *Db) Query1(name, q string) *ogdl.Graph {
 
-	rows, err := db.Db.Query(q)
+	db1 := db.dbs[name]
+	if db1 == nil {
+		return nil
+	}
+
+	if db1.Db == nil {
+		db.open(name)
+	}
+
+	rows, err := db1.Db.Query(q)
 	if err != nil {
 		log.Println(err.Error())
 		return nil
