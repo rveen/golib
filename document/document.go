@@ -65,6 +65,8 @@ func (doc *Document) Html() string {
 			codeToHtml(n, &sb)
 		case "!p":
 			textToHtml(n, &sb)
+		case "!q":
+			textToHtmlQuote(n, &sb)
 		case "!h":
 			if isNumbered(n.GetAt(1).ThisString()) {
 				numbered = true

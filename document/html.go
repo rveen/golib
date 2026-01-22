@@ -419,6 +419,15 @@ func textToHtml(n *ogdl.Graph, sb *strings.Builder) {
 	sb.WriteString("</p>\n")
 }
 
+func textToHtmlQuote(n *ogdl.Graph, sb *strings.Builder) {
+
+	sb.WriteString("<p class='quote'>")
+	for _, g := range n.Out {
+		sb.WriteString(inLine(g.ThisString()))
+	}
+	sb.WriteString("</p>\n")
+}
+
 func codeToHtml(n *ogdl.Graph, sb *strings.Builder) {
 
 	// First node is class
