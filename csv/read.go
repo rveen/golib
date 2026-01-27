@@ -65,11 +65,22 @@ func Read(file string) ([]map[string]string, error) {
 	defer f.Close()
 
 	var data [][]string
+	first := true
 
 	scanner := bufio.NewScanner(f)
 	// note: resize scanner's capacity if lines are over 64K
 	for scanner.Scan() {
 		line := scanner.Text()
+		if len(line) == 0 {
+			continue
+		}
+
+		// Remove byte order marker
+		if first && line[0] == 0xef {
+			line = line[3:]
+			first = false
+		}
+
 		if line[0] != '#' {
 			data = append(data, Split(line))
 		}
@@ -112,12 +123,19 @@ func Read(file string) ([]map[string]string, error) {
 // Read a CVS file into and array of maps
 func ReadString(in string) ([]map[string]string, error) {
 
+	// Remove byte order marker
+	if in[0] == 0xef {
+		in = in[3:]
+	}
 	var data [][]string
 
 	scanner := bufio.NewScanner(strings.NewReader(in))
 	// note: resize scanner's capacity if lines are over 64K
 	for scanner.Scan() {
 		line := scanner.Text()
+		if len(line) == 0 {
+			continue
+		}
 		if line[0] != '#' {
 			data = append(data, Split(line))
 		}
