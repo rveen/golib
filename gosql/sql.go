@@ -247,6 +247,56 @@ func (db *Db) Query2(q string) *ogdl.Graph {
 }
 
 // Return all results in a list of lists and a separated list of columns
+func (db *Db) QueryToMaps(q string) []map[string]string {
+
+	rows, err := db.Db.Query(q)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+
+	cols, _ := rows.Columns()
+
+	var r []map[string]string
+
+	for rows.Next() {
+
+		values := make([]interface{}, len(cols))
+
+		for i := 0; i < len(cols); i++ {
+			values[i] = new(sql.NullString)
+		}
+
+		err := rows.Scan(values...)
+
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		a := make([]*sql.NullString, len(cols))
+		var ok bool
+
+		for i := 0; i < len(cols); i++ {
+			a[i], ok = values[i].(*sql.NullString)
+			if !ok {
+				log.Printf("error: failed to convert type %T [%d]\n", values[i], i)
+			}
+		}
+
+		m := make(map[string]string)
+		for i, v := range a {
+			m[cols[i]] = v.String
+		}
+
+		r = append(r, m)
+
+	}
+
+	return r
+}
+
+// Return all results in a list of lists and a separated list of columns
 func (db *Db) QueryToList(q string) ([][]string, []string) {
 
 	rows, err := db.Db.Query(q)

@@ -14,6 +14,14 @@ func (p *Parser) PeekByte() byte {
 	return p.Buf[p.Ix]
 }
 
+// PeekNextByte returns the second next byte witohut consuming it
+func (p *Parser) PeekNextByte() byte {
+	if p.Ix >= len(p.Buf)-1 || p.Ix < 0 {
+		return 0
+	}
+	return p.Buf[p.Ix+1]
+}
+
 // PeekRune returns the next rune witohut consuming it
 func (p *Parser) PeekRune() (rune, bool) {
 	r, ok := p.Rune()
