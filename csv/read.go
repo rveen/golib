@@ -106,7 +106,7 @@ func Read(file string) ([]map[string]string, error) {
 		for j := 0; j < len(l); j++ {
 			// Clean up (remove space)
 			value := strings.TrimSpace(l[j])
-			if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
+			if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") && len(value) > 2 {
 				value = value[1 : len(value)-1]
 			}
 			// Add to map

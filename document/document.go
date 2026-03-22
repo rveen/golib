@@ -139,6 +139,8 @@ func (doc *Document) HtmlWithLinks(urlbase string) string {
 			codeToHtml(n, &sb)
 		case "!p":
 			textToHtml(n, &sb)
+		case "!q":
+			textToHtmlQuote(n, &sb)
 		case "!h":
 			if isNumbered(n.GetAt(1).ThisString()) {
 				numbered = true
@@ -182,6 +184,8 @@ func (doc *Document) HtmlNoHeader() string {
 			codeToHtml(n, &sb)
 		case "!p":
 			textToHtml(n, &sb)
+		case "!q":
+			textToHtmlQuote(n, &sb)
 		case "!h":
 			if header {
 				headerToHtml(n, &sb, nil, "", false)

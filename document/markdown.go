@@ -187,6 +187,7 @@ func getType(s string) (string, string) {
 }
 
 func quote(p *parser.Parser) {
+	p.Byte() // Consume '>'
 	paragraph(p, "!q", "")
 }
 
@@ -242,6 +243,13 @@ func command(p *parser.Parser) {
 // TODO detect HR (---)
 // TODO include definition lists (- text :: text) <-- not std markdown
 func list(p *parser.Parser) {
+
+	// Ignore HRs for now
+	c := p.PeekNextByte()
+	if c == '-' {
+		p.Line()
+		return
+	}
 
 	level := 1
 	prevIndent := 0
@@ -550,6 +558,7 @@ func code(p *parser.Parser) {
 	for {
 
 		s = p.Line()
+
 		if s == "" || s[0] == '`' {
 			break
 		}
