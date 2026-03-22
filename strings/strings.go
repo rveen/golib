@@ -27,3 +27,7 @@ func (str Strings) Substring(s string, a, b int64) string {
 	println("Strings.Substring", s, a, b, len(s))
 	return s[a:b]
 }
+
+func (str Strings) SpacesToPlus(s string) string {
+	return strings.ReplaceAll(s, " ", "+")
+}
