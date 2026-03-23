@@ -20,6 +20,7 @@ var (
 	// Not complete: * should not be followed by space
 	bold   = regexp.MustCompile(`\*\*([^\*]+)\*\*`)
 	italic = regexp.MustCompile(`\*([^\*]+)\*`)
+	icode  = regexp.MustCompile("`(\\w[^ ]+)`")
 )
 
 // Markdown entities:
@@ -78,6 +79,7 @@ func inLine(s string) string {
 	s = link2.ReplaceAllString(s, "<a href=\"$1\">$1</a>")
 	s = bold.ReplaceAllString(s, "<b>$1</b>")
 	s = italic.ReplaceAllString(s, "<em>$1</em>")
+	s = icode.ReplaceAllString(s, "<code>$1</code>")
 
 	s = strings.ReplaceAll(s, "___?", "<input class='form-control' type='text'/>")
 	s = strings.ReplaceAll(s, "_ok_?", "<input class='btn btn-primary' type='submit' value='Submit'>")
