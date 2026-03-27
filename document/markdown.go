@@ -1,6 +1,7 @@
 package document
 
 import (
+	"log"
 	"regexp"
 	"strings"
 
@@ -10,12 +11,13 @@ import (
 )
 
 var (
-	anchor = regexp.MustCompile(`{#\w+}`)
-	typ    = regexp.MustCompile(`{!\w+}`)
-	link   = regexp.MustCompile(`\[([^\]]+)\]\(([^\)]+)\)`)
-	link2  = regexp.MustCompile(`\[\]\(([^\)]+)\)`)
-	img    = regexp.MustCompile(`!\[([^\]]+)\]\( *([^ ]+) *([^\)]*)\)`)
-	img2   = regexp.MustCompile(`!\[\]\( *([^ ]+) *(.*)\)`)
+	anchor     = regexp.MustCompile(`{#\w+}`)
+	typ        = regexp.MustCompile(`{!\w+}`)
+	link       = regexp.MustCompile(`\[([^\]]+)\]\(([^\)]+)\)`)
+	link2      = regexp.MustCompile(`\[\]\(([^\)]+)\)`)
+	img        = regexp.MustCompile(`!\[([^\]]+)\]\( *([^ ]+) *([^\)]*)\)`)
+	img2       = regexp.MustCompile(`!\[\]\( *([^ ]+) *(.*)\)`)
+	toonHeader = regexp.MustCompile(`^([\w_-]+)\[(\d*)\]\{([^}]+)\}:\s*$`)
 
 	// Not complete: * should not be followed by space
 	bold   = regexp.MustCompile(`\*\*([^\*]+)\*\*`)
@@ -44,6 +46,13 @@ var (
 
 func block(p *parser.Parser) bool {
 
+	// Consume blank lines between block elements.
+	// Without this, a blank line falls into the default case and paragraph()
+	// reads the '\n', then peeks ahead and consumes the next block's content.
+	for p.PeekByte() == '\n' {
+		p.Byte()
+	}
+
 	c := p.PeekByte()
 
 	switch c {
@@ -66,7 +75,9 @@ func block(p *parser.Parser) bool {
 	case '{':
 		data(p)
 	default:
-		paragraph(p, "!p", "")
+		if !ttable(p) {
+			paragraph(p, "!p", "")
+		}
 	}
 
 	return true
@@ -278,6 +289,23 @@ func list(p *parser.Parser) {
 		s := p.Line()
 		k, s := getKey(s)
 
+		// Collect continuation lines: indented more than the '-' marker
+		// and not starting with another list marker.
+		var cont []string
+		for {
+			cix := p.Ix
+			ci, _ := p.Space()
+			nc := p.PeekByte()
+			if ci <= indent || nc == '-' || nc == '\n' || nc == 0 {
+				p.Ix = cix
+				break
+			}
+			cont = append(cont, p.Line())
+		}
+		if len(cont) > 0 {
+			s = s + "\n" + strings.Join(cont, "\n")
+		}
+
 		if s != "" {
 
 			p.Emit("!li")
@@ -337,6 +365,23 @@ func nlist(p *parser.Parser) {
 		// Read the text of the item, with possibly a key
 		s := p.Line()
 		k, s := getKey(s)
+
+		// Collect continuation lines: indented more than the '+' marker
+		// and not starting with another list marker.
+		var cont []string
+		for {
+			cix := p.Ix
+			ci, _ := p.Space()
+			nc := p.PeekByte()
+			if ci <= indent || nc == '+' || nc == '\n' || nc == 0 {
+				p.Ix = cix
+				break
+			}
+			cont = append(cont, p.Line())
+		}
+		if len(cont) > 0 {
+			s = s + "\n" + strings.Join(cont, "\n")
+		}
 
 		if s != "" {
 
@@ -535,6 +580,99 @@ func table(p *parser.Parser) {
 	p.Dec()
 }
 
+// ttable detects and parses a TOON table (https://toonformat.dev).
+//
+// Header line format: title[N]{field1 | field2 | ...}:
+// Followed by indented data rows with the same separator.
+//
+// Returns true if a TOON table was parsed; returns false and calls paragraph()
+// if the line did not match.
+func ttable(p *parser.Parser) bool {
+
+	i := p.Ix
+	line := p.Line()
+
+	l := line
+	if len(l) > 30 {
+		l = l[0:30]
+	}
+	log.Printf("ttable %s\n", l)
+
+	m := toonHeader.FindStringSubmatch(line)
+	if m == nil {
+		p.Ix = i // Unread line
+		return false
+	}
+
+	title := m[1]
+	fields := m[3]
+
+	log.Printf("ttable definition: %s\n", m[1])
+
+	// Detect separator: prefer '|', fall back to ','
+	sep := ","
+	if strings.ContainsRune(fields, '|') {
+		sep = "|"
+	}
+
+	names := splitAndTrim(fields, sep)
+
+	p.Emit("!tb")
+	p.Inc()
+	p.Emit("!title")
+	p.Inc()
+	p.Emit(title)
+	p.Dec()
+
+	// Header row
+	p.Emit("!tr")
+	p.Inc()
+	for _, name := range names {
+		p.Emit(name)
+	}
+	p.Dec()
+
+	// Data rows — consume while next line is indented
+	for {
+		c := p.PeekByte()
+		if c != ' ' && c != '\t' {
+			break
+		}
+		row := strings.TrimSpace(p.Line())
+		if row == "" {
+			break
+		}
+		cells := splitAndTrim(row, sep)
+		p.Emit("!tr")
+		p.Inc()
+		for _, cell := range cells {
+			p.Emit(cell)
+		}
+		p.Dec()
+	}
+
+	p.Emit("!hrow")
+	p.Dec()
+	return true
+}
+
+// splitAndTrim splits s by sep and trims whitespace and optional surrounding
+// quotes (" or ') from each field.
+func splitAndTrim(s, sep string) []string {
+	parts := strings.Split(s, sep)
+	for i, f := range parts {
+		f = strings.TrimSpace(f)
+		if len(f) >= 2 {
+			if (f[0] == '"' && f[len(f)-1] == '"') ||
+				(f[0] == '\'' && f[len(f)-1] == '\'') {
+				f = f[1 : len(f)-1]
+			}
+		}
+		parts[i] = f
+	}
+	return parts
+}
+
 // Code processes ```[lang] entries
 // Read all lines until a line that starts with '`'
 func code(p *parser.Parser) {
@@ -600,7 +738,7 @@ func paragraph(p *parser.Parser, head, pre string) {
 		b = append(b, byte(c))
 	}
 
-	if len(b) == 0 {
+	if len(b) == 0 && len(pre) == 0 {
 		return
 	}
 

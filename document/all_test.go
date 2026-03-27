@@ -139,7 +139,7 @@ func BenchmarkDocNew2(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		doc, _ := New("|| Parameter | Min | Max |\n|---|---|\n| Vbat | 6 | 18 |\n| Idd | 0.03 | 0.1 |\n")
-		doc.Html2()
+		doc.Html()
 	}
 }
 
@@ -155,5 +155,5 @@ func TestPart(t *testing.T) {
 
 	doc, _ := New("# chapter 1\n## chapter 1.1\n# chapter 2")
 	part := doc.Part("chapter1")
-	fmt.Println(part.Html2())
+	fmt.Println(part.Html())
 }
