@@ -1,7 +1,6 @@
 package document
 
 import (
-	"log"
 	"regexp"
 	"strings"
 
@@ -585,8 +584,7 @@ func table(p *parser.Parser) {
 // Header line format: title[N]{field1 | field2 | ...}:
 // Followed by indented data rows with the same separator.
 //
-// Returns true if a TOON table was parsed; returns false and calls paragraph()
-// if the line did not match.
+// Returns true if a TOON table was parsed; else returns false.
 func ttable(p *parser.Parser) bool {
 
 	i := p.Ix
@@ -596,7 +594,6 @@ func ttable(p *parser.Parser) bool {
 	if len(l) > 30 {
 		l = l[0:30]
 	}
-	log.Printf("ttable %s\n", l)
 
 	m := toonHeader.FindStringSubmatch(line)
 	if m == nil {
@@ -606,8 +603,6 @@ func ttable(p *parser.Parser) bool {
 
 	title := m[1]
 	fields := m[3]
-
-	log.Printf("ttable definition: %s\n", m[1])
 
 	// Detect separator: prefer '|', fall back to ','
 	sep := ","
