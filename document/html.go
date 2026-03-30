@@ -74,35 +74,34 @@ func headerToHtml(n *ogdl.Graph, sb *strings.Builder, hh *headers, urlbase strin
 		typ = " data-type=\"" + typ + "\" "
 	}
 
-	if hh == nil {
-		sb.WriteString("<h" + h + typ + " id=\"" + key + "\">" + text + "</h" + h + ">\n")
-		return
-	}
+	if hh != nil {
 
-	level, _ := strconv.Atoi(h)
-	level -= 1
+		level, _ := strconv.Atoi(h)
+		level -= 1
 
-	if level > 9 {
-		return
-	}
-	if len(hh.h) == 0 {
-		hh.h = make([]string, 10)
-		hh.ix = make([]int, 10)
-	}
+		if level > 9 {
+			return
+		}
+		if len(hh.h) == 0 {
+			hh.h = make([]string, 10)
+			hh.ix = make([]int, 10)
+		}
 
-	hh.n = level
-	hh.h[level] = key
-	hh.ix[level] += 1
+		hh.n = level
+		hh.h[level] = key
+		hh.ix[level] += 1
 
-	key = ""
-	number := ""
-	for i := 0; i <= level; i++ {
-		key += hh.h[i] + "/"
-		number += strconv.Itoa(hh.ix[i]) + "."
-	}
+		key = ""
+		number := ""
+		for i := 0; i <= level; i++ {
+			key += hh.h[i] + "/"
+			number += strconv.Itoa(hh.ix[i]) + "."
+		}
 
-	if numbered {
-		text = number + " " + text
+		if numbered {
+			text = number + " " + text
+		}
+
 	}
 
 	if urlbase == "" {
@@ -112,24 +111,6 @@ func headerToHtml(n *ogdl.Graph, sb *strings.Builder, hh *headers, urlbase strin
 	}
 }
 
-// TODO nested lists
-//
-// 1 !li
-// 2 1
-// 2 "item 1"
-// 2 item1
-// 1 !li
-// 2 1
-// 2 "item 2"
-// 2 i2
-// 1 !li
-// 2 2
-// 2 "item 2.1"
-// 2 item21
-// 1 !li
-// 2 1
-// 2 "item 3"
-// 2 item3
 func (doc *Document) listToHtml(sb *strings.Builder, level int) {
 
 	sb.WriteString("<ul>\n")

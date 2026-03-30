@@ -44,8 +44,18 @@ type headers struct {
 	n  int
 }
 
+// HtmlNested returnes the Document in HTML format, with header anchors
+// containing the full path (from upper headers)
+func (doc *Document) HtmlNested() string {
+	return doc.html(false)
+}
+
 // Html returnes the Document in HTML format
 func (doc *Document) Html() string {
+	return doc.html(true)
+}
+
+func (doc *Document) html(flat bool) string {
 
 	var sb strings.Builder
 
@@ -54,6 +64,10 @@ func (doc *Document) Html() string {
 	}
 
 	hh := &headers{}
+	if flat {
+		hh = nil
+	}
+	
 	numbered := false
 
 	for _, n := range doc.g.Out {

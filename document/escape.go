@@ -7,9 +7,10 @@ import (
 // DocEscape parsers inline escape sequences to OGDL
 //
 // Formats:
-//    \token
-//    \token()
-//    \( )
+//
+//	\token
+//	\token()
+//	\( )
 func docEscape(p *ogdl.Parser) bool {
 	c, _ := p.Rune()
 
