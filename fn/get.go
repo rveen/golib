@@ -27,6 +27,29 @@ func (fn *FNode) get(path string, raw bool) error {
 			return errors.New(". not allowed in paths")
 		}
 
+		if part == "~" {
+			fn.dir()
+			found := false
+			for _, entry := range fn.Data.Out {
+				if entry.ThisString() == "_tilde" {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return errors.New("404")
+			}
+			if fn.Params == nil {
+				fn.Params = make(map[string]string)
+			}
+			fn.n++ // advance past ~ so remainingPath excludes it
+			fn.Params["tilde"] = fn.remainingPath()
+			fn.n = len(fn.parts) // consume all remaining parts
+			fn.Path += "/_tilde"
+			fn.Type = "dir"
+			break
+		}
+
 		savePath := fn.Path
 		fn.Path += "/" + part
 		fn.Type = fn.info()
