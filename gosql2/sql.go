@@ -29,13 +29,15 @@ func New(cfg *ogdl.Graph) *Db {
 	dbs.dbs = make(map[string]*Db1)
 
 	dd := cfg.Node("databases")
-	for _, d := range dd.Out {
-		db := &Db1{}
-		db.name = d.ThisString()
-		db.driver = d.Node("driver").String()
-		db.uri = d.Node("uri").String()
-		dbs.dbs[db.name] = db
-		log.Printf("database %s added\n", db.name)
+	if dd != nil {
+		for _, d := range dd.Out {
+			db := &Db1{}
+			db.name = d.ThisString()
+			db.driver = d.Node("driver").String()
+			db.uri = d.Node("uri").String()
+			dbs.dbs[db.name] = db
+			log.Printf("database %s added\n", db.name)
+		}
 	}
 
 	return &dbs
