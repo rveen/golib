@@ -37,13 +37,19 @@ func (fn *FNode) Put(path string, content []byte) error {
 // - @ at the end means log()
 // - @rev means a specific revision (at any point in the path that has revisions)
 func (fn *FNode) Get(path string) error {
-	return fn.get(path, false)
+	return fn.get(path, false, false)
 }
 
 func (fn *FNode) GetRaw(path string) error {
-	err := fn.get(path, true)
+	err := fn.get(path, true, false)
 	fn.Type = "file"
 	return err
+}
+
+// GetMeta resolves the path (sets Path, Type, Params) without reading file content.
+// Use this when the caller intends to open the file directly (e.g. for streaming).
+func (fn *FNode) GetMeta(path string) error {
+	return fn.get(path, false, true)
 }
 
 func (fn *FNode) index() bool {

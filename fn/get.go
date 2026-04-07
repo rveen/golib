@@ -8,7 +8,7 @@ import (
 // Get returns the FNode that corresponds to the path given.
 //
 // It receives an FNode where only the root of the file system is set.
-func (fn *FNode) get(path string, raw bool) error {
+func (fn *FNode) get(path string, raw, noRead bool) error {
 
 	// Split the path into its parts or elements
 	fn.parts = parts(path)
@@ -49,6 +49,9 @@ func (fn *FNode) get(path string, raw bool) error {
 			break
 
 		case "document":
+			if noRead {
+				return nil
+			}
 			fn.file()
 
 			if !raw {
@@ -59,6 +62,9 @@ func (fn *FNode) get(path string, raw bool) error {
 			return nil
 
 		case "data":
+			if noRead {
+				return nil
+			}
 			fn.file()
 
 			if !raw {
@@ -100,13 +106,16 @@ func (fn *FNode) get(path string, raw bool) error {
 		if fn.n != len(fn.parts) {
 			return errors.New("404 (extra path after file)")
 		}
+		if noRead {
+			return nil
+		}
 		return fn.file()
 
 	case "dir":
 		err := fn.dir()
 		if err == nil {
 			fn.index()
-			fn.processFile(raw)
+			fn.processFile(raw, noRead)
 		}
 		return err
 	}
@@ -114,7 +123,11 @@ func (fn *FNode) get(path string, raw bool) error {
 	return errors.New("404 (eop)")
 }
 
-func (fn *FNode) processFile(raw bool) error {
+func (fn *FNode) processFile(raw, noRead bool) error {
+
+	if noRead {
+		return nil
+	}
 
 	err := fn.file()
 

@@ -6,6 +6,7 @@ import (
 	"log"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/rveen/ogdl"
@@ -148,10 +149,26 @@ func (fn *FNode) svnNavigate(path string) error {
 // svnFile loads the file in fn.Path into fn.Content
 func (fn *FNode) svnFile() error {
 
-	var err error
+	const maxSVNFileSize = 100 * 1024 * 1024 // 100 MB
 
 	log.Printf("svnFile fn.Root [%s] fn.Path [%s] fn.Revision [%s]\n", fn.Root, fn.Path, fn.Revision)
 
+	// Check file size before loading to avoid OOM for large files
+	var sizeOut []byte
+	var sizeErr error
+	if fn.Revision == "" || fn.Revision == "HEAD" {
+		sizeOut, sizeErr = exec.Command("svnlook", "filesize", fn.Root, fn.Path).Output()
+	} else {
+		sizeOut, sizeErr = exec.Command("svnlook", "-r", fn.Revision, "filesize", fn.Root, fn.Path).Output()
+	}
+	if sizeErr == nil {
+		n, _ := strconv.ParseInt(strings.TrimSpace(string(sizeOut)), 10, 64)
+		if n > maxSVNFileSize {
+			return fmt.Errorf("svn file too large to serve: %d bytes (limit %d)", n, maxSVNFileSize)
+		}
+	}
+
+	var err error
 	if fn.Revision == "" || fn.Revision == "HEAD" {
 		fn.Content, err = exec.Command("svnlook", "cat", fn.Root, fn.Path).Output()
 	} else {
