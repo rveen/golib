@@ -24,7 +24,7 @@ func TestGetFile(t *testing.T) {
 
 	fnode := New("/files/go/src/github.com/rveen/golib/fn/test")
 
-	err := fnode.Get("test.go")
+	err := fnode.Get("test.go_")
 	if err != nil {
 		fmt.Println(err.Error())
 		return

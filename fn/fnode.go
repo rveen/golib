@@ -103,13 +103,7 @@ func (fn *FNode) document() {
 
 // Return the type of a file either as data, document or file (blob).
 func (fn *FNode) fileType() string {
-	if strings.HasSuffix(fn.Path, ".md") {
-		return "document"
-	}
-	if strings.HasSuffix(fn.Path, ".ogdl") {
-		return "data"
-	}
-	return "file"
+	return fileType(fn.Path)
 }
 
 // Return the type of a file either as data, document or file (blob).
