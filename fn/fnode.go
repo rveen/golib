@@ -24,37 +24,26 @@ type FNode struct {
 	n     int
 }
 
-// Return the part of the path that hasn't been processed
-// (from fn.N up to len(fn.Parts)
-//
-// It returns a relative path (not starting with /)
-func (fn *FNode) remainingPath() string {
-
-	path := ""
+// joinParts joins fn.parts[fn.n:] with sep. Returns "" if there are no remaining parts.
+func (fn *FNode) joinParts(sep string) string {
+	if fn.n >= len(fn.parts) {
+		return ""
+	}
+	var b strings.Builder
 	for i := fn.n; i < len(fn.parts); i++ {
-		path += "/" + fn.parts[i]
+		if i > fn.n {
+			b.WriteString(sep)
+		}
+		b.WriteString(fn.parts[i])
 	}
-	if path != "" {
-		return path[1:]
-	}
-	return ""
+	return b.String()
 }
 
-// Return the part of the path that hasn't been processed
-// (from fn.N up to len(fn.Parts). Use dots as separators
-//
-// It returns a relative path (not starting with /)
-func (fn *FNode) remainingPathDot() string {
+// remainingPath returns the unprocessed portion of the path (fn.parts[fn.n:]) joined by "/".
+func (fn *FNode) remainingPath() string { return fn.joinParts("/") }
 
-	path := ""
-	for i := fn.n; i < len(fn.parts); i++ {
-		path += "." + fn.parts[i]
-	}
-	if path != "" {
-		return path[1:]
-	}
-	return ""
-}
+// remainingPathDot returns the unprocessed portion of the path (fn.parts[fn.n:]) joined by ".".
+func (fn *FNode) remainingPathDot() string { return fn.joinParts(".") }
 
 // Return the path as data. Start with fn.Content and process remaining
 // parts of path. If there are no remaining parts, the whole data file is returned.
@@ -74,9 +63,13 @@ func (fn *FNode) data() {
 // parts of path. If there are no remaining parts, the whole document file is returned.
 //
 // The file is what is loaded into fn.Content
-func (fn *FNode) document() {
+func (fn *FNode) document() error {
 
-	fn.Document, _ = document.New(string(fn.Content))
+	var err error
+	fn.Document, err = document.New(string(fn.Content))
+	if err != nil {
+		return err
+	}
 
 	// If the current part is "_" then we want the data view of this document.
 	data := false
@@ -85,13 +78,11 @@ func (fn *FNode) document() {
 		fn.Type = "data"
 		fn.n++
 		data = true
-	} else {
-		// fn.Type = "document"		Probably this has been set already
 	}
 
 	path := fn.remainingPathDot()
 	if path == "" {
-		return
+		return nil
 	}
 
 	if data {
@@ -99,14 +90,14 @@ func (fn *FNode) document() {
 	} else {
 		fn.Document = fn.Document.Part(path)
 	}
+	return nil
 }
 
-// Return the type of a file either as data, document or file (blob).
 func (fn *FNode) fileType() string {
 	return fileType(fn.Path)
 }
 
-// Return the type of a file either as data, document or file (blob).
+// fileType returns the type of a file: "data" (.ogdl), "document" (.md), or "file" (anything else).
 func fileType(path string) string {
 	if strings.HasSuffix(path, ".md") {
 		return "document"

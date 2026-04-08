@@ -8,6 +8,14 @@ import (
 	"strings"
 )
 
+var (
+	// reUniqueID matches the native 32-char lowercase hex ID produced by UniqueID.
+	reUniqueID = regexp.MustCompile(`^[a-f0-9]{32}$`)
+	// reUUIDv4v7 matches canonical UUID v4 and v7 strings (RFC 4122 / RFC 9562):
+	// xxxxxxxx-xxxx-[47]xxx-[89ab]xxx-xxxxxxxxxxxx
+	reUUIDv4v7 = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[47][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+)
+
 // 128 bit UUID
 func UniqueID() string {
 	bytes := make([]byte, 16)
@@ -18,12 +26,14 @@ func UniqueID() string {
 	return fmt.Sprintf("%x", bytes)
 }
 
-// Return true if the input string is a probable UniqueID
+// IsUniqueID returns true if s is the native 32-char hex ID produced by
+// UniqueID (identified by format and entropy), or a canonical UUID v4 or v7 string.
 func IsUniqueID(s string) bool {
 	s = strings.ToLower(s)
-	// TODO: compile this beforehand
-	match, _ := regexp.MatchString(`^[a-f0-9]{32}$`, s)
-	if !match {
+	if reUUIDv4v7.MatchString(s) {
+		return true
+	}
+	if !reUniqueID.MatchString(s) {
 		return false
 	}
 	return Entropy(s) > 64

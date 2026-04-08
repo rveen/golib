@@ -13,7 +13,7 @@ import (
 	"github.com/rveen/ogdl"
 )
 
-// Create and emtpy FNode with the root set to the given system path.
+// Create an empty FNode with the root set to the given system path.
 func New(root string) *FNode {
 	return &FNode{Root: root}
 }
@@ -25,12 +25,12 @@ func NewFS(fs fs.FS) *FNode {
 }
 
 func (fn *FNode) Put(path string, content []byte) error {
-	return nil
+	return errors.New("not implemented")
 }
 
 // Get returns an FNode (it updates its receiving object).
 //
-// What should fn contain to start with ?????
+// The receiver fn must have Root (or RootFs) set. All other fields are populated by Get.
 //
 // Revision rules
 // - 1 rev per path
@@ -202,9 +202,7 @@ func (fn *FNode) navigate() error {
 	return nil
 }
 
-// dirType returns either 'dir ', 'svn' or 'git'
-// for the path contained in fn.Path
-//
+// dirType returns 'dir', 'svn', or 'git' for the path contained in fn.Path.
 // fn is not affected.
 func (fn *FNode) dirType() string {
 
@@ -221,32 +219,18 @@ func (fn *FNode) dirType() string {
 		return ""
 	}
 
-	sscore := 0
-	gscore := 0
-
+	names := make(map[string]bool, len(dir))
 	for _, f := range dir {
+		names[f.Name()] = true
+	}
 
-		switch f.Name() {
-		case "format":
-			sscore++
-			if sscore > 1 {
-				return "svn"
-			}
-		case "hooks":
-			sscore++
-			gscore++
-			if sscore > 1 {
-				return "svn"
-			}
-			if gscore > 1 {
-				return "git"
-			}
-		case "HEAD":
-			gscore++
-			if gscore > 1 {
-				return "svn"
-			}
-		}
+	// SVN bare repo has both 'format' and 'hooks'.
+	if names["format"] && names["hooks"] {
+		return "svn"
+	}
+	// Git bare repo has both 'HEAD' and 'hooks'.
+	if names["HEAD"] && names["hooks"] {
+		return "git"
 	}
 	return "dir"
 }
@@ -254,10 +238,7 @@ func (fn *FNode) dirType() string {
 // Prepare the path for io.fs.
 // io.fs.Read* functions need a path that doesn't start with / and is not empty.
 func ioPathClean(path string) string {
-
-	if strings.HasPrefix(path, "/") {
-		path = path[1:]
-	}
+	path = strings.TrimPrefix(path, "/")
 	if path == "" {
 		path = "."
 	}
@@ -274,7 +255,7 @@ var exts = []string{".html", ".htm", ".md", ".ogdl"}
 // - svn (SVN root directory)
 // - git (Git root directory)
 // - dir (regular directory: not SVN or Git)
-// - emtpy string: type is unknown.
+// - empty string: type is unknown.
 //
 // fn.Path is updated if a missing extension has been found.
 // TODO: do we want this?

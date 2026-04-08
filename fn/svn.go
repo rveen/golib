@@ -15,11 +15,6 @@ import (
 
 func (fn *FNode) svnGet(path string) error {
 
-	/*revs := false
-	if len(path) > 1 && path[len(path)-1] == '@' {
-		revs = true
-	}*/
-
 	fn.Root, _ = filepath.Abs(filepath.Clean(fn.Root))
 
 	log.Printf("svnGet: fn.Root [%s] fn.Path [%s] path [%s]\n", fn.Root, fn.Path, path)
@@ -36,8 +31,7 @@ func (fn *FNode) svnGet(path string) error {
 
 		case "document":
 			fn.svnFile()
-			fn.document()
-			return nil
+			return fn.document()
 
 		case "data":
 			fn.svnFile()
@@ -49,7 +43,9 @@ func (fn *FNode) svnGet(path string) error {
 			// check index / readme
 			fn.svnDir()
 			if fn.Type == "document" {
-				fn.document()
+				if err := fn.document(); err != nil {
+					return err
+				}
 			} else if fn.Type == "data" {
 				fn.data()
 			}
@@ -81,9 +77,7 @@ func (fn *FNode) svnNavigate(path string) error {
 	// @ at the end means list revisions (in fn.Data, fn.Type => "log")
 	// else, part@token at any place in the path defines the revision to get.
 
-	if len(path) > 0 && path[0] == '/' {
-		path = path[1:]
-	}
+	path = strings.TrimPrefix(path, "/")
 
 	revs := false
 	if strings.HasSuffix(path, "@") {
@@ -146,6 +140,15 @@ func (fn *FNode) svnNavigate(path string) error {
 	return nil
 }
 
+// svnRev returns the effective SVN revision string for use in svnlook/svn commands.
+// An empty revision is normalized to "HEAD".
+func (fn *FNode) svnRev() string {
+	if fn.Revision == "" {
+		return "HEAD"
+	}
+	return fn.Revision
+}
+
 // svnFile loads the file in fn.Path into fn.Content
 func (fn *FNode) svnFile() error {
 
@@ -153,13 +156,15 @@ func (fn *FNode) svnFile() error {
 
 	log.Printf("svnFile fn.Root [%s] fn.Path [%s] fn.Revision [%s]\n", fn.Root, fn.Path, fn.Revision)
 
+	rev := fn.svnRev()
+
 	// Check file size before loading to avoid OOM for large files
 	var sizeOut []byte
 	var sizeErr error
-	if fn.Revision == "" || fn.Revision == "HEAD" {
+	if rev == "HEAD" {
 		sizeOut, sizeErr = exec.Command("svnlook", "filesize", fn.Root, fn.Path).Output()
 	} else {
-		sizeOut, sizeErr = exec.Command("svnlook", "-r", fn.Revision, "filesize", fn.Root, fn.Path).Output()
+		sizeOut, sizeErr = exec.Command("svnlook", "-r", rev, "filesize", fn.Root, fn.Path).Output()
 	}
 	if sizeErr == nil {
 		n, _ := strconv.ParseInt(strings.TrimSpace(string(sizeOut)), 10, 64)
@@ -169,10 +174,10 @@ func (fn *FNode) svnFile() error {
 	}
 
 	var err error
-	if fn.Revision == "" || fn.Revision == "HEAD" {
+	if rev == "HEAD" {
 		fn.Content, err = exec.Command("svnlook", "cat", fn.Root, fn.Path).Output()
 	} else {
-		fn.Content, err = exec.Command("svnlook", "-r", fn.Revision, "cat", fn.Root, fn.Path).Output()
+		fn.Content, err = exec.Command("svnlook", "-r", rev, "cat", fn.Root, fn.Path).Output()
 	}
 
 	log.Printf("svnFile: fn.Content size %d\n", len(fn.Content))
@@ -187,10 +192,7 @@ func (fn *FNode) svnDir() error {
 		path = "."
 	}
 
-	rev := fn.Revision
-	if rev == "" {
-		rev = "HEAD"
-	}
+	rev := fn.svnRev()
 
 	b, err := exec.Command("svn", "list", "--xml", "-r", rev, "file:///"+fn.Root+"/"+path).Output()
 
@@ -250,18 +252,17 @@ func (fn *FNode) svnLog() error {
 
 	log.Printf("svnLog [%s] [%s] [%s]", fn.Root, fn.Path, fn.Revision)
 
-	path := fn.Path
-	if path != "" && path[0] == '/' {
-		path = path[1:]
-	}
+	path := strings.TrimPrefix(fn.Path, "/")
+
+	rev := fn.svnRev()
 
 	var b []byte
 	var err error
 
-	if fn.Revision == "" || fn.Revision == "HEAD" {
+	if rev == "HEAD" {
 		b, err = exec.Command("svn", "log", "-v", "--xml", "file:///"+fn.Root, path).Output()
 	} else {
-		b, err = exec.Command("svn", "log", "-r", fn.Revision, "-v", "--xml", "file:///"+fn.Root, path).Output()
+		b, err = exec.Command("svn", "log", "-r", rev, "-v", "--xml", "file:///"+fn.Root, path).Output()
 	}
 
 	if err != nil {
@@ -286,8 +287,6 @@ func (fn *FNode) svnLog() error {
 
 		b, err = exec.Command("svn", "info", "--xml", "-r", rev, "file:///"+fn.Root+"/"+fn.Path).Output()
 		m := gxml.FromXML(b)
-
-		fmt.Println(m.Text())
 
 		rel := m.Get("info.entry.relative_url'").String()
 		if len(rel) > 0 && rel[0] == '^' {
@@ -316,30 +315,32 @@ func (fn *FNode) svnLog() error {
 // 'svnlook info' on the other hand doesn't return info on paths, only on releases
 // 'svnlook meta' is a modification that gives info on paths as they are at the time
 // of the release. See https://github.com/rveen/subversion
-func (fn *FNode) svnInfo() *ogdl.Graph {
+func (fn *FNode) svnInfo() (*ogdl.Graph, error) {
 
 	path := fn.Path
 	if path == "" {
 		path = "."
 	}
 
-	var err error
-	var b []byte
+	rev := fn.svnRev()
 
-	if fn.Revision == "" || fn.Revision == "HEAD" {
+	var b []byte
+	var err error
+
+	if rev == "HEAD" {
 		b, err = exec.Command("svnlook", "meta", fn.Root, path).Output()
 	} else {
-		b, err = exec.Command("svnlook", "meta", "-r", fn.Revision, fn.Root, path).Output()
+		b, err = exec.Command("svnlook", "meta", "-r", rev, fn.Root, path).Output()
 	}
 
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return ogdl.FromBytes(b)
+	return ogdl.FromBytes(b), nil
 }
 
-// Return 'dir', 'file', 'document', 'data' or ”
+// Return 'dir', 'file', 'document', 'data' or ""
 func (fn *FNode) svnType() string {
 
 	path := fn.Path
@@ -347,17 +348,20 @@ func (fn *FNode) svnType() string {
 		path = "."
 	}
 
-	var err error
-	var b []byte
+	rev := fn.svnRev()
 
-	if fn.Revision == "" || fn.Revision == "HEAD" {
+	var b []byte
+	var err error
+
+	if rev == "HEAD" {
 		b, err = exec.Command("svnlook", "meta", fn.Root, path).Output()
 	} else {
-		b, err = exec.Command("svnlook", "meta", "-r", fn.Revision, fn.Root, path).Output()
+		b, err = exec.Command("svnlook", "meta", "-r", rev, fn.Root, path).Output()
 	}
 
 	if err != nil {
-		return "error: svnlook missing?"
+		log.Println("svnType: svnlook failed:", err)
+		return ""
 	}
 	if strings.HasPrefix(string(b), "kind dir") {
 		return "dir"

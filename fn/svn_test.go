@@ -1,7 +1,6 @@
 package fn
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -9,20 +8,23 @@ func TestSvnDir(t *testing.T) {
 
 	fnode := New("/files/go/src/github.com/rveen/golib/fn/test/svn")
 
-	fnode.svnDir()
+	if err := fnode.svnDir(); err != nil {
+		t.Fatal(err)
+	}
 
-	fmt.Println(fnode.Data.Text())
-
+	t.Log(fnode.Data.Text())
 }
 
 func TestSvnInfo(t *testing.T) {
 
 	fnode := New("/files/go/src/github.com/rveen/golib/fn/test/svn")
 
-	g := fnode.svnInfo()
+	g, err := fnode.svnInfo()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	fmt.Println(g.Text())
-
+	t.Log(g.Text())
 }
 
 func TestSvnType(t *testing.T) {
@@ -31,7 +33,7 @@ func TestSvnType(t *testing.T) {
 
 	fnode.Path = "adir/dir.go"
 
-	fmt.Println(fnode.svnType())
+	t.Log(fnode.svnType())
 }
 
 func TestSvnLog(t *testing.T) {
@@ -40,7 +42,9 @@ func TestSvnLog(t *testing.T) {
 
 	fnode.Path = "adir/dir.go"
 
-	fnode.svnLog()
+	if err := fnode.svnLog(); err != nil {
+		t.Fatal(err)
+	}
 
-	fmt.Println(fnode.Data.Text())
+	t.Log(fnode.Data.Text())
 }

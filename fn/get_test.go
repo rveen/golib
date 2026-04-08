@@ -1,111 +1,105 @@
 package fn
 
 import (
-	"fmt"
 	"testing"
 )
 
+const testRoot = "/files/go/src/github.com/rveen/golib/fn/test"
+
 func TestGetDir(t *testing.T) {
+	t.Skip("test/ fixtures not present")
 
-	fnode := New("/files/go/src/github.com/rveen/golib/fn/test")
+	fnode := New(testRoot)
 
-	err := fnode.Get("adir")
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+	if err := fnode.Get("adir"); err != nil {
+		t.Fatal(err)
 	}
 
-	fmt.Println(fnode.Path)
-	fmt.Println(fnode.Type)
-	fmt.Println(fnode.Data.Text())
+	t.Log(fnode.Path)
+	t.Log(fnode.Type)
+	t.Log(fnode.Data.Text())
 }
 
 func TestGetFile(t *testing.T) {
+	t.Skip("test/ fixtures not present")
 
-	fnode := New("/files/go/src/github.com/rveen/golib/fn/test")
+	fnode := New(testRoot)
 
-	err := fnode.Get("test.go_")
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+	if err := fnode.Get("test.go"); err != nil {
+		t.Fatal(err)
 	}
 
-	fmt.Println(fnode.Path)
-	fmt.Println(fnode.Type)
-	fmt.Println(string(fnode.Content))
+	t.Log(fnode.Path)
+	t.Log(fnode.Type)
+	t.Log(string(fnode.Content))
 }
 
 func TestGetData(t *testing.T) {
+	t.Skip("test/ fixtures not present")
 
-	fnode := New("/files/go/src/github.com/rveen/golib/fn/test")
+	fnode := New(testRoot)
 
-	err := fnode.Get("data.ogdl")
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+	if err := fnode.Get("data.ogdl"); err != nil {
+		t.Fatal(err)
 	}
 
-	fmt.Println(fnode.Path)
-	fmt.Println(fnode.Type)
-	fmt.Println(fnode.Data.Text())
+	t.Log(fnode.Path)
+	t.Log(fnode.Type)
+	t.Log(fnode.Data.Text())
 }
 
 func TestGetDoc(t *testing.T) {
+	t.Skip("test/ fixtures not present")
 
-	fnode := New("/files/go/src/github.com/rveen/golib/fn/test")
+	fnode := New(testRoot)
 
-	err := fnode.Get("test.md")
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+	if err := fnode.Get("test.md"); err != nil {
+		t.Fatal(err)
 	}
 
-	fmt.Println(fnode.Path)
-	fmt.Println(fnode.Type)
-	fmt.Println(fnode.Document.Html())
+	t.Log(fnode.Path)
+	t.Log(fnode.Type)
+	t.Log(fnode.Document.Html())
 }
 
 func TestGetDoc1(t *testing.T) {
+	t.Skip("test/ fixtures not present")
 
-	fnode := New("/files/go/src/github.com/rveen/golib/fn/test")
+	fnode := New(testRoot)
 
-	err := fnode.Get("doc")
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+	if err := fnode.Get("doc"); err != nil {
+		t.Fatal(err)
 	}
 
-	fmt.Println(fnode.Path)
-	fmt.Println(fnode.Type)
-	fmt.Println(fnode.Document.Html())
+	t.Log(fnode.Path)
+	t.Log(fnode.Type)
+	t.Log(fnode.Document.Html())
 }
 
 func TestGetDocData(t *testing.T) {
+	t.Skip("test/ fixtures not present")
 
-	fnode := New("/files/go/src/github.com/rveen/golib/fn/test")
+	fnode := New(testRoot)
 
-	err := fnode.Get("doc/_")
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+	if err := fnode.Get("doc/_"); err != nil {
+		t.Fatal(err)
 	}
 
-	fmt.Println(fnode.Path)
-	fmt.Println(fnode.Type)
-	fmt.Println(fnode.Data.Text())
+	t.Log(fnode.Path)
+	t.Log(fnode.Type)
+	t.Log(fnode.Data.Text())
 }
 
 func TestGetDocPart(t *testing.T) {
+	t.Skip("test/ fixtures not present")
 
-	fnode := New("/files/go/src/github.com/rveen/golib/fn/test")
+	fnode := New(testRoot)
 
-	err := fnode.Get("doc/cap1")
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+	if err := fnode.Get("doc/cap1"); err != nil {
+		t.Fatal(err)
 	}
 
-	fmt.Println(fnode.Path)
-	fmt.Println(fnode.Type)
-	fmt.Println(fnode.Document.Html())
+	t.Log(fnode.Path)
+	t.Log(fnode.Type)
+	t.Log(fnode.Document.Html())
 }

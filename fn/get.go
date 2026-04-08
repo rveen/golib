@@ -17,7 +17,7 @@ func (fn *FNode) get(path string, raw, noRead bool) error {
 	fn.Path = fn.Root
 	fn.Type = "dir"
 
-	// Navigate the fyle system part
+	// Navigate the file system part
 
 	for fn.n = 0; fn.n < len(fn.parts); fn.n++ {
 
@@ -80,7 +80,9 @@ func (fn *FNode) get(path string, raw, noRead bool) error {
 			if !raw {
 				// Process remaining parts in document()
 				fn.n++
-				fn.document()
+				if err := fn.document(); err != nil {
+					return err
+				}
 			}
 			return nil
 
@@ -119,11 +121,7 @@ func (fn *FNode) get(path string, raw, noRead bool) error {
 	switch fn.Type {
 
 	case "document":
-		if fn.n != len(fn.parts) {
-			// ???
-		}
-		fn.document()
-		return nil
+		return fn.document()
 
 	case "file":
 		if fn.n != len(fn.parts) {
@@ -159,11 +157,10 @@ func (fn *FNode) processFile(raw, noRead bool) error {
 	}
 
 	switch fn.Type {
-
 	case "document":
-		/* TODO return*/ fn.document()
+		return fn.document()
 	case "data":
-		/* TODO return*/ fn.data()
+		fn.data()
 	}
 	return nil
 }
