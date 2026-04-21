@@ -59,6 +59,8 @@ func block(p *parser.Parser) bool {
 		return false
 	case '#':
 		header(p)
+	case ':':
+		definition(p)
 	case '.':
 		command(p)
 	case '>':
@@ -201,6 +203,11 @@ func getType(s string) (string, string) {
 func quote(p *parser.Parser) {
 	p.Byte() // Consume '>'
 	paragraph(p, "!q", "")
+}
+
+func definition(p *parser.Parser) {
+	p.Byte() // Consume '>'
+	paragraph(p, "!qd", "")
 }
 
 func command(p *parser.Parser) {
@@ -750,7 +757,7 @@ func paragraph(p *parser.Parser, head, pre string) {
 }
 
 func isDocSpecial(c rune) bool {
-	if c == '#' || c == '!' || c == '.' || c == '>' || c == '-' || c == '`' || c == '|' {
+	if c == '#' || c == '!' || c == '.' || c == '>' || c == '-' || c == '`' || c == '|' || c == ':' {
 		return true
 	}
 	return false

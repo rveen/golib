@@ -67,7 +67,7 @@ func (doc *Document) html(flat bool) string {
 	if flat {
 		hh = nil
 	}
-	
+
 	numbered := false
 
 	for _, n := range doc.g.Out {
@@ -81,6 +81,8 @@ func (doc *Document) html(flat bool) string {
 			textToHtml(n, &sb)
 		case "!q":
 			textToHtmlQuote(n, &sb)
+		case "!qd":
+			textToHtmlDefinition(n, &sb)
 		case "!h":
 			if isNumbered(n.GetAt(1).ThisString()) {
 				numbered = true
