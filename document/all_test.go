@@ -1,9 +1,10 @@
 package document
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	//"github.com/rveen/ogdl"
-	"fmt"
 )
 
 /*
@@ -156,4 +157,22 @@ func TestPart(t *testing.T) {
 	doc, _ := New("# chapter 1\n## chapter 1.1\n# chapter 2")
 	part := doc.Part("chapter1")
 	fmt.Println(part.Html())
+}
+
+func TestCodeBlockEmptyLine(t *testing.T) {
+	// Empty lines inside a code block must not terminate it.
+	doc, _ := New("```go\nline1\n\nline3\n```\n")
+	html := doc.Html()
+	if !strings.Contains(html, "line1") || !strings.Contains(html, "line3") {
+		t.Errorf("code block broken by empty line: %s", html)
+	}
+}
+
+func TestCodeBlockToken(t *testing.T) {
+	// ```token should be accepted; token becomes the language tag.
+	doc, _ := New("```python\nx = 1\n```\n")
+	html := doc.Html()
+	if !strings.Contains(html, "x = 1") {
+		t.Errorf("code block with token not rendered: %s", html)
+	}
 }

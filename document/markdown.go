@@ -698,14 +698,17 @@ func code(p *parser.Parser) {
 	p.Emit(s)
 
 	for {
-
 		s = p.Line()
 
-		if s == "" || s[0] == '`' {
+		if len(s) > 0 && s[0] == '`' {
 			break
 		}
 
 		p.Emit(s)
+
+		if p.End() {
+			break
+		}
 	}
 	p.Dec()
 }
