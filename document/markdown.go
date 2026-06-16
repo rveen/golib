@@ -21,7 +21,7 @@ var (
 	// Not complete: * should not be followed by space
 	bold   = regexp.MustCompile(`\*\*([^\*]+)\*\*`)
 	italic = regexp.MustCompile(`\*([^\*]+)\*`)
-	icode  = regexp.MustCompile("`(\\w[^ ]+)`")
+	icode  = regexp.MustCompile("`([^`]+)`")
 )
 
 // Markdown entities:
@@ -72,7 +72,12 @@ func block(p *parser.Parser) bool {
 	case '|':
 		table(p)
 	case '`':
-		code(p)
+		n := p.Ix
+		if n+2 < len(p.Buf) && p.Buf[n+1] == '`' && p.Buf[n+2] == '`' {
+			code(p)
+		} else {
+			paragraph(p, "!p", "")
+		}
 	case '{':
 		data(p)
 	default:
@@ -237,7 +242,7 @@ func command(p *parser.Parser) {
 		return
 	}
 
-	if s == ".bp" {
+	if s == ".bp" || s == ".page" {
 		p.Emit("<div class='pagebreak'></div>")
 		return
 	}
@@ -698,12 +703,13 @@ func code(p *parser.Parser) {
 	p.Emit(s)
 
 	for {
-		s = p.Line()
-
-		if len(s) > 0 && s[0] == '`' {
+		if p.End() {
 			break
 		}
-
+		s = p.Line()
+		if strings.HasPrefix(s, "```") {
+			break
+		}
 		p.Emit(s)
 
 		if p.End() {

@@ -95,8 +95,6 @@ func (doc *Document) html(flat bool) string {
 			listToHtml(n, &sb, true)
 		case "!tb":
 			tableToHtml(n, &sb)
-		case ".nh":
-			numbered = true
 		case "!var":
 			sb.WriteString(variable(n.String(), doc.Context))
 		default:
@@ -169,8 +167,6 @@ func (doc *Document) HtmlWithLinks(urlbase string) string {
 			listToHtml(n, &sb, true)
 		case "!tb":
 			tableToHtml(n, &sb)
-		case ".nh":
-			numbered = true
 		case "!var":
 			sb.WriteString(variable(n.String(), doc.Context))
 		}

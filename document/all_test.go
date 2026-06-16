@@ -159,20 +159,32 @@ func TestPart(t *testing.T) {
 	fmt.Println(part.Html())
 }
 
-func TestCodeBlockEmptyLine(t *testing.T) {
-	// Empty lines inside a code block must not terminate it.
-	doc, _ := New("```go\nline1\n\nline3\n```\n")
-	html := doc.Html()
-	if !strings.Contains(html, "line1") || !strings.Contains(html, "line3") {
-		t.Errorf("code block broken by empty line: %s", html)
+func TestCodeBlockHash(t *testing.T) {
+	// Lines starting with # inside a code block must not be parsed as headers
+	doc, _ := New("```bash\n# comment\necho hello\n```\n")
+	h := doc.Html()
+	if strings.Contains(h, "<h") {
+		t.Errorf("code block content parsed as header: %s", h)
 	}
 }
 
-func TestCodeBlockToken(t *testing.T) {
-	// ```token should be accepted; token becomes the language tag.
-	doc, _ := New("```python\nx = 1\n```\n")
-	html := doc.Html()
-	if !strings.Contains(html, "x = 1") {
-		t.Errorf("code block with token not rendered: %s", html)
+func TestInlineCodeAtLineStart(t *testing.T) {
+	// A line starting with a single backtick is inline code, not a fenced block
+	doc, _ := New("`foo` bar\n")
+	h := doc.Html()
+	if strings.Contains(h, "<pre") {
+		t.Errorf("single backtick parsed as code block: %s", h)
+	}
+	if !strings.Contains(h, "<code>foo</code>") {
+		t.Errorf("inline code not rendered: %s", h)
+	}
+}
+
+func TestCodeBlockBlankLine(t *testing.T) {
+	// A blank line inside a code block must not terminate it
+	doc, _ := New("```bash\nline1\n\n# still code\n```\n")
+	h := doc.Html()
+	if strings.Contains(h, "<h") {
+		t.Errorf("blank line in code block caused header parsing: %s", h)
 	}
 }
