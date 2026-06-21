@@ -186,7 +186,7 @@ func listToHtml(n *ogdl.Graph, sb *strings.Builder, ordered bool) {
 				text = "<span class='ballot-no'>☒</span>" + text[3:]
 				tasklist = true
 			case ' ':
-				text = "☐" + text[3:]
+				text = "<span class='ballot-empty'>☐</span>" + text[3:]
 				tasklist = true
 			case '/':
 				text = "<span class='ballot-yes'>☑</span>" + text[3:]
