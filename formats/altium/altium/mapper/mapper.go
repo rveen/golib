@@ -207,9 +207,10 @@ func (m *mapper) applySheetRecord(r record.Record, sh *schema.Sheet) {
 }
 
 // emHeightFactor converts an Altium font SIZEn (a line-spacing length) to the
-// em height used for rendering. Per the format notes (section 9.2) the em size
-// is roughly 0.875× the line spacing.
-const emHeightFactor = 0.875
+// em height used for rendering. This matches KiCad's altium importer, which
+// renders text at font.Size/2 (see ParseLabel/AddTextBox in sch_io_altium.cpp:
+// SetTextSize({ font.Size / 2, font.Size / 2 })).
+const emHeightFactor = 0.5
 
 // buildFontTable decodes the sheet font table (FONTIDCOUNT + SIZEn/FONTNAMEn/…).
 // The returned slice is 0-based; a record's FONTID of n refers to entry n-1.
@@ -274,6 +275,7 @@ func (m *mapper) buildComponent(streamPos int, r record.Record) (*schema.Compone
 			comp.Designator = child.Str("TEXT")
 			comp.DesignatorFont = schema.FontRef(child.IntDef("FONTID", 0))
 			comp.DesignatorRot = convert.ComponentOrientation(child.IntDef("ORIENTATION", 0))
+			comp.DesignatorJust = convert.AltiumJustification(child.IntDef("JUSTIFICATION", 0))
 			absPos := m.readPoint(child, "LOCATION")
 			comp.DesignatorPos = deRotatePoint(schema.Point{
 				X: absPos.X - anchor.X,
@@ -478,6 +480,8 @@ func (m *mapper) buildNetLabel(r record.Record) *schema.NetLabel {
 	return &schema.NetLabel{
 		Text: text,
 		Pos:  m.readPoint(r, "LOCATION"),
+		Rot:  convert.ComponentOrientation(r.IntDef("ORIENTATION", 0)),
+		Just: convert.AltiumJustification(r.IntDef("JUSTIFICATION", 0)),
 		Font: schema.FontRef(r.IntDef("FONTID", 0)),
 		Prov: schema.Provenance{Record: r.Index, Kind: "NET_LABEL"},
 	}
@@ -499,6 +503,8 @@ func (m *mapper) buildText(r record.Record) *schema.Text {
 	return &schema.Text{
 		Content: r.UTF8Str("TEXT"),
 		Pos:     m.readPoint(r, "LOCATION"),
+		Rot:     convert.ComponentOrientation(r.IntDef("ORIENTATION", 0)),
+		Just:    convert.AltiumJustification(r.IntDef("JUSTIFICATION", 0)),
 		Font:    schema.FontRef(r.IntDef("FONTID", 0)),
 		Prov:    schema.Provenance{Record: r.Index, Kind: record.TypeName[r.Type]},
 	}
@@ -609,11 +615,13 @@ func (m *mapper) collectFields(owned []record.Record, anchor schema.Point, orien
 				Y: absPos.Y - anchor.Y,
 			}, orient)
 			fields = append(fields, schema.Field{
-				Name:  child.UTF8Str("NAME"),
-				Value: child.UTF8Str("TEXT"),
-				Font:  schema.FontRef(child.IntDef("FONTID", 0)),
-				Pos:   localPos,
-				Rot:   convert.ComponentOrientation(child.IntDef("ORIENTATION", 0)),
+				Name:    child.UTF8Str("NAME"),
+				Value:   child.UTF8Str("TEXT"),
+				Visible: !child.Bool("ISHIDDEN"),
+				Font:    schema.FontRef(child.IntDef("FONTID", 0)),
+				Pos:     localPos,
+				Rot:     convert.ComponentOrientation(child.IntDef("ORIENTATION", 0)),
+				Just:    convert.AltiumJustification(child.IntDef("JUSTIFICATION", 0)),
 			})
 		}
 	}

@@ -105,8 +105,9 @@ type Component struct {
 	Symbol         SymbolID
 	Designator     string
 	DesignatorFont FontRef
-	DesignatorPos  Point  // label position in component-local frame (de-rotated)
-	DesignatorRot  Angle  // absolute text rotation in degrees (0 = horizontal)
+	DesignatorPos  Point   // label position in component-local frame (de-rotated)
+	DesignatorRot  Angle   // absolute text orientation in degrees (0/90/180/270)
+	DesignatorJust Justify // designator text anchor justification
 	Position       Point
 	Rotation       Angle
 	Mirrored       bool
@@ -193,7 +194,8 @@ type Field struct {
 	Value   string
 	Visible bool
 	Pos     Point
-	Rot     Angle // absolute text rotation in degrees (0 = horizontal)
+	Rot     Angle   // absolute text orientation in degrees (0/90/180/270)
+	Just    Justify // text anchor justification
 	Font    FontRef
 }
 
@@ -215,6 +217,8 @@ type Bus struct {
 type NetLabel struct {
 	Text string
 	Pos  Point
+	Rot  Angle   // absolute text orientation in degrees (0/90/180/270)
+	Just Justify // text anchor justification
 	Font FontRef
 	Prov Provenance
 }
@@ -413,19 +417,21 @@ const (
 	PortBidi
 )
 
-// Justify is text alignment.
+// Justify is text alignment, encoded to match Altium's JUSTIFICATION values
+// (0–8): a vertical band (bottom/center/top) crossed with a horizontal band
+// (left/center/right). Altium's default is BottomLeft (0).
 type Justify int
 
 const (
-	JustifyLeft Justify = iota
-	JustifyCenter
-	JustifyRight
-	JustifyBottomLeft
-	JustifyBottomCenter
-	JustifyBottomRight
-	JustifyTopLeft
-	JustifyTopCenter
-	JustifyTopRight
+	JustifyBottomLeft   Justify = iota // 0
+	JustifyBottomCenter                // 1
+	JustifyBottomRight                 // 2
+	JustifyCenterLeft                  // 3
+	JustifyCenterCenter                // 4
+	JustifyCenterRight                 // 5
+	JustifyTopLeft                     // 6
+	JustifyTopCenter                   // 7
+	JustifyTopRight                    // 8
 )
 
 // Paper describes the sheet paper size.

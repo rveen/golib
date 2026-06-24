@@ -174,3 +174,94 @@ func TestNormalizeAngle(t *testing.T) {
 		}
 	}
 }
+
+func TestTextPositioning(t *testing.T) {
+	// h: -1 left, 0 center, +1 right.  v: -1 top, 0 center, +1 bottom.
+	tests := []struct {
+		name         string
+		just         schema.Justify
+		orient       schema.Angle
+		wantA        int
+		wantH, wantV int
+	}{
+		// Altium default (bottom-left, rightwards) → horizontal, left bottom.
+		{"default", schema.JustifyBottomLeft, 0, 0, -1, 1},
+		// Leftwards flips horizontal justification but stays horizontal.
+		{"leftwards", schema.JustifyBottomLeft, 180, 0, 1, 1},
+		// Upwards → vertical, justification unchanged.
+		{"upwards", schema.JustifyBottomLeft, 90, 90, -1, 1},
+		// Downwards → vertical with flipped horizontal justification.
+		{"downwards", schema.JustifyBottomLeft, 270, 90, 1, 1},
+		// Top-right anchor.
+		{"top-right", schema.JustifyTopRight, 0, 0, 1, -1},
+		// Center-center stays centered (no justify clause).
+		{"center", schema.JustifyCenterCenter, 0, 0, 0, 0},
+		// Never produces 180°/270° — leftwards rightward-flips, not rotates.
+		{"right-leftwards", schema.JustifyBottomRight, 180, 0, -1, 1},
+	}
+	for _, tc := range tests {
+		a, h, v := TextPositioning(tc.just, tc.orient)
+		if a != tc.wantA || h != tc.wantH || v != tc.wantV {
+			t.Errorf("%s: TextPositioning(%d, %g) = (%d, %d, %d), want (%d, %d, %d)",
+				tc.name, tc.just, tc.orient, a, h, v, tc.wantA, tc.wantH, tc.wantV)
+		}
+		if a != 0 && a != 90 {
+			t.Errorf("%s: angle %d is not 0 or 90 (text would render upside down)", tc.name, a)
+		}
+	}
+}
+
+func TestCompensateFieldForInstanceRotation(t *testing.T) {
+	// A default designator is absolute horizontal, left bottom (angle 0, h -1, v +1).
+	// After compensation it must STORE values that render back to left-bottom once
+	// KiCad re-applies the instance rotation.
+	tests := []struct {
+		instRot             int
+		wantA, wantH, wantV int
+	}{
+		{0, 0, -1, 1},    // identity
+		{90, 90, 1, -1},  // R7: stored vertical right-top; KiCad folds 180° → horizontal left-bottom
+		{180, 0, 1, -1},  // 180° fold negates both axes
+		{270, 90, -1, 1}, // net 360° → no fold, no negate
+	}
+	for _, tc := range tests {
+		a, h, v := CompensateFieldForInstanceRotation(0, -1, 1, tc.instRot)
+		if a != tc.wantA || h != tc.wantH || v != tc.wantV {
+			t.Errorf("instRot %d: got (%d,%d,%d), want (%d,%d,%d)",
+				tc.instRot, a, h, v, tc.wantA, tc.wantH, tc.wantV)
+		}
+		if a != 0 && a != 90 {
+			t.Errorf("instRot %d: stored angle %d is not 0 or 90", tc.instRot, a)
+		}
+	}
+}
+
+func TestCompensateFieldRoundTrip(t *testing.T) {
+	// Applying KiCad's render transform to the compensated values must recover
+	// the intended absolute appearance for every instance rotation.
+	render := func(a, h, v, instRot int) (int, int, int) {
+		net := ((a+instRot)%360 + 360) % 360
+		switch net {
+		case 180:
+			return 0, -h, -v
+		case 270:
+			return 90, -h, -v
+		default: // 0 or 90
+			return net, h, v
+		}
+	}
+	for _, absA := range []int{0, 90} {
+		for _, absH := range []int{-1, 0, 1} {
+			for _, absV := range []int{-1, 0, 1} {
+				for _, rot := range []int{0, 90, 180, 270} {
+					sa, sh, sv := CompensateFieldForInstanceRotation(absA, absH, absV, rot)
+					ra, rh, rv := render(sa, sh, sv, rot)
+					if ra != absA || rh != absH || rv != absV {
+						t.Errorf("rot %d abs(%d,%d,%d): stored(%d,%d,%d) renders(%d,%d,%d)",
+							rot, absA, absH, absV, sa, sh, sv, ra, rh, rv)
+					}
+				}
+			}
+		}
+	}
+}

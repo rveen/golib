@@ -112,8 +112,13 @@ func renderSheet(sh *schema.Sheet, syms map[schema.SymbolID]*schema.Symbol, rep 
 	for _, nl := range sh.NetLabels {
 		writeNetLabel(w, sh, nl)
 	}
+	projName := sh.Name
+	if projName == "" {
+		projName = "schconv"
+	}
+	rootUUID := sheetUUID(sh.Name)
 	for _, pp := range sh.PowerPorts {
-		writePowerPortInstance(w, sh, pp)
+		writePowerPortInstance(w, sh, pp, projName, rootUUID)
 	}
 	// Instances.
 	for _, comp := range sh.Components {
@@ -122,8 +127,15 @@ func renderSheet(sh *schema.Sheet, syms map[schema.SymbolID]*schema.Symbol, rep 
 			rep.Add(emit.Warn, comp.Prov, "symbol %s not found for %q", comp.Symbol, comp.Designator)
 			continue
 		}
-		writeSymbolInstance(w, sh, comp, sym)
+		writeSymbolInstance(w, sh, comp, sym, projName, rootUUID)
 	}
+
+	// Sheet instances: required for KiCad to treat the sheet as the root and to
+	// assign a page number.
+	w.open("sheet_instances")
+	w.line(`(path "/" (page "1"))`)
+	w.close()
+
 	w.close()
 	return w.String()
 }
@@ -430,11 +442,36 @@ func writeJunction(w *sexprWriter, j schema.Point) {
 }
 
 func writeNetLabel(w *sexprWriter, sh *schema.Sheet, nl *schema.NetLabel) {
+	angle, h, v := convert.TextPositioning(nl.Just, nl.Rot)
 	w.open("label", q(convert.OverbarAltiumToKicad(nl.Text)))
-	w.line(fmt.Sprintf("(at %s %s 0)", f(w.kx(nl.Pos.X)), f(w.ky(nl.Pos.Y))))
-	w.line(fmt.Sprintf("(effects (font %s) (justify left bottom))", fontSize(sh.FontHeight(nl.Font)*7/10)))
+	w.line(fmt.Sprintf("(at %s %s %d)", f(w.kx(nl.Pos.X)), f(w.ky(nl.Pos.Y)), angle))
+	w.line(fmt.Sprintf("(effects (font %s)%s)", fontSize(sh.FontHeight(nl.Font)), justifyClause(h, v)))
 	w.writeUUID(makeUUID(fmt.Sprintf("nl:%d:%d:%s", nl.Pos.X, nl.Pos.Y, nl.Text)))
 	w.close()
+}
+
+// justifyClause formats a KiCad " (justify …)" suffix from KiCad-signed
+// alignment values (h: -1 left/+1 right, v: -1 top/+1 bottom). It returns the
+// empty string when both axes are centered (KiCad's default), in which case no
+// justify clause is emitted.
+func justifyClause(h, v int) string {
+	toks := make([]string, 0, 2)
+	switch {
+	case h < 0:
+		toks = append(toks, "left")
+	case h > 0:
+		toks = append(toks, "right")
+	}
+	switch {
+	case v < 0:
+		toks = append(toks, "top")
+	case v > 0:
+		toks = append(toks, "bottom")
+	}
+	if len(toks) == 0 {
+		return ""
+	}
+	return " (justify " + strings.Join(toks, " ") + ")"
 }
 
 // ---------- Power port symbols ----------
@@ -528,8 +565,21 @@ func writePowerBodyGraphic(w *sexprWriter, style schema.PowerStyle) {
 	}
 }
 
+// writeInstances emits the (instances …) block that binds a symbol placement to
+// a reference designator on the root sheet. Without this block KiCad treats the
+// symbol as unannotated and ignores the Reference property text.
+func writeInstances(w *sexprWriter, projName, rootUUID, ref string, unit int) {
+	w.open("instances")
+	w.open("project", q(projName))
+	w.open("path", q("/"+rootUUID))
+	w.line(fmt.Sprintf("(reference %s) (unit %d)", q(ref), unit))
+	w.close() // path
+	w.close() // project
+	w.close() // instances
+}
+
 // writePowerPortInstance emits a power port as a proper KiCad power symbol instance.
-func writePowerPortInstance(w *sexprWriter, sh *schema.Sheet, pp *schema.PowerPort) {
+func writePowerPortInstance(w *sexprWriter, sh *schema.Sheet, pp *schema.PowerPort, projName, rootUUID string) {
 	libID := powerLibID(pp.NetName)
 	x := w.kx(pp.Pos.X)
 	y := w.ky(pp.Pos.Y)
@@ -548,21 +598,24 @@ func writePowerPortInstance(w *sexprWriter, sh *schema.Sheet, pp *schema.PowerPo
 	w.writeUUID(makeUUID(fmt.Sprintf("pp:%d:%d:%s", pp.Pos.X, pp.Pos.Y, pp.NetName)))
 
 	// Reference property: always hidden.
-	writePropAt(w, "Reference", "#PWR", x, y, 0, schema.DefaultFontHeight, true)
+	writePropAt(w, "Reference", "#PWR", x, y, 0, 0, 0, schema.DefaultFontHeight, true)
 	// Value property: show the net name if ShowNetName.
-	writePropAt(w, "Value", convert.OverbarAltiumToKicad(pp.NetName), x, y, 0, sh.FontHeight(pp.Font), !pp.ShowNetName)
+	writePropAt(w, "Value", convert.OverbarAltiumToKicad(pp.NetName), x, y, 0, 0, 0, sh.FontHeight(pp.Font), !pp.ShowNetName)
 
 	w.open("pin", q("1"))
 	w.writeUUID(makeUUID(fmt.Sprintf("pp_pin:%d:%d:%s", pp.Pos.X, pp.Pos.Y, pp.NetName)))
 	w.close()
 
+	writeInstances(w, projName, rootUUID, "#PWR", 1)
+
 	w.close()
 }
 
 func writeText(w *sexprWriter, sh *schema.Sheet, t *schema.Text) {
+	angle, h, v := convert.TextPositioning(t.Just, t.Rot)
 	w.open("text", q(t.Content))
-	w.line(fmt.Sprintf("(at %s %s %g)", f(w.kx(t.Pos.X)), f(w.ky(t.Pos.Y)), t.Rot))
-	w.line(fmt.Sprintf("(effects (font %s) (justify left bottom))", fontSize(sh.FontHeight(t.Font))))
+	w.line(fmt.Sprintf("(at %s %s %d)", f(w.kx(t.Pos.X)), f(w.ky(t.Pos.Y)), angle))
+	w.line(fmt.Sprintf("(effects (font %s)%s)", fontSize(sh.FontHeight(t.Font)), justifyClause(h, v)))
 	w.writeUUID(makeUUID(fmt.Sprintf("txt:%d:%d:%s", t.Pos.X, t.Pos.Y, t.Content)))
 	w.close()
 }
@@ -575,7 +628,7 @@ func fontSize(h schema.Length) string {
 
 // ---------- Symbol instance ----------
 
-func writeSymbolInstance(w *sexprWriter, sh *schema.Sheet, comp *schema.Component, sym *schema.Symbol) {
+func writeSymbolInstance(w *sexprWriter, sh *schema.Sheet, comp *schema.Component, sym *schema.Symbol, projName, rootUUID string) {
 	libID := symLibID(sym)
 	x := w.kx(comp.Position.X)
 	y := w.ky(comp.Position.Y)
@@ -596,30 +649,51 @@ func writeSymbolInstance(w *sexprWriter, sh *schema.Sheet, comp *schema.Componen
 	w.line(fmt.Sprintf("(unit %d)", comp.Unit))
 	w.line("(in_bom yes)")
 	w.line("(on_board yes)")
+	w.line("(dnp no)")
 	w.writeUUID(makeUUID(fmt.Sprintf("comp:%s:%d", comp.Designator, comp.Prov.Record)))
 
-	// KiCad adds the symbol rotation to property text angles, so we
-	// counter-rotate by −comp.Rotation to keep labels horizontal (matching
-	// Altium's behaviour, where ORIENTATION=0 means horizontal regardless of
-	// the component body rotation).
-	counterRot := func(labelRot schema.Angle) int {
-		return ((int(labelRot)-int(comp.Rotation))%360 + 360) % 360
-	}
-
+	// Field text angle/justification are absolute in the KiCad file (KiCad does
+	// not re-rotate property text by the symbol's placement angle). Altium also
+	// stores field orientations in absolute schematic space, so the field's own
+	// orientation maps straight through convert.TextPositioning — no counter-
+	// rotation by the component rotation is required.
 	dx, dy := w.localToKicad(comp, comp.DesignatorPos)
-	writePropAt(w, "Reference", comp.Designator, dx, dy, counterRot(comp.DesignatorRot), sh.FontHeight(comp.DesignatorFont), false)
+	fieldPropAt(w, "Reference", comp.Designator, dx, dy, comp.DesignatorJust, comp.DesignatorRot, comp.Rotation, sh.FontHeight(comp.DesignatorFont), comp.Designator == "")
 
+	valField := comp.ValueField()
 	val, valFont := sym.LibRef, schema.FontRef(0)
 	vx, vy := x+2.54, y+2.54 // fallback when no value field
+	valJust := schema.JustifyBottomLeft
 	valRot := schema.Angle(0)
-	if vf := comp.ValueField(); vf != nil {
-		val, valFont = vf.Value, vf.Font
-		vx, vy = w.localToKicad(comp, vf.Pos)
-		valRot = vf.Rot
+	valHide := false
+	if valField != nil {
+		val, valFont = valField.Value, valField.Font
+		vx, vy = w.localToKicad(comp, valField.Pos)
+		valJust, valRot = valField.Just, valField.Rot
+		valHide = !valField.Visible
 	}
-	writePropAt(w, "Value", val, vx, vy, counterRot(valRot), sh.FontHeight(valFont), false)
+	fieldPropAt(w, "Value", val, vx, vy, valJust, valRot, comp.Rotation, sh.FontHeight(valFont), valHide)
 
-	writePropAt(w, "x", "·", x, y, 0, schema.DefaultFontHeight, false)
+	// Remaining component parameters become KiCad properties, honouring each
+	// field's Altium visibility. The value/comment field is already emitted
+	// above; skip it and any unnamed or reserved fields. KiCad requires unique
+	// property names, so de-duplicate.
+	seen := map[string]bool{"Reference": true, "Value": true}
+	for i := range comp.Fields {
+		fld := &comp.Fields[i]
+		if fld == valField || fld.Name == "" {
+			continue
+		}
+		name := fld.Name
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+		fx, fy := w.localToKicad(comp, fld.Pos)
+		fieldPropAt(w, name, fld.Value, fx, fy, fld.Just, fld.Rot, comp.Rotation, sh.FontHeight(fld.Font), !fld.Visible)
+	}
+
+	writeInstances(w, projName, rootUUID, comp.Designator, comp.Unit)
 
 	w.close()
 }
@@ -638,16 +712,29 @@ func writeProp(w *sexprWriter, name, value string, x, y float64, hide bool) {
 	w.close()
 }
 
-func writePropAt(w *sexprWriter, name, value string, x, y float64, angle int, h schema.Length, hide bool) {
+// writePropAt emits a symbol property. angle is the absolute text angle (0 or
+// 90 — KiCad never stores 180°/270° for fields); hjust/vjust are KiCad-signed
+// alignment values (see justifyClause).
+func writePropAt(w *sexprWriter, name, value string, x, y float64, angle, hjust, vjust int, h schema.Length, hide bool) {
 	w.open("property", q(name), q(value))
 	w.line(fmt.Sprintf("(at %s %s %d)", f(x), f(y), angle))
-	eff := "(font " + fontSize(h) + ")"
+	eff := "(font " + fontSize(h) + ")" + justifyClause(hjust, vjust)
 	if hide {
 		w.line(fmt.Sprintf("(effects %s (hide))", eff))
 	} else {
-		w.line(fmt.Sprintf("(effects %s (justify left bottom))", eff))
+		w.line(fmt.Sprintf("(effects %s)", eff))
 	}
 	w.close()
+}
+
+// fieldPropAt computes the KiCad angle/justification for a symbol-instance text
+// field and emits it as a property. It first derives the absolute appearance
+// from the Altium justification + orientation, then compensates for the symbol
+// instance rotation (KiCad re-rotates field text by the placement angle).
+func fieldPropAt(w *sexprWriter, name, value string, x, y float64, just schema.Justify, orient, instRot schema.Angle, h schema.Length, hide bool) {
+	angle, hj, vj := convert.TextPositioning(just, orient)
+	angle, hj, vj = convert.CompensateFieldForInstanceRotation(angle, hj, vj, int(instRot))
+	writePropAt(w, name, value, x, y, angle, hj, vj, h, hide)
 }
 
 func writeStroke(w *sexprWriter, s schema.Stroke) {

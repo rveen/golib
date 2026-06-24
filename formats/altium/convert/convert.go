@@ -227,6 +227,92 @@ func PaperDims(p schema.Paper) schema.Size {
 	return schema.Size{W: MilsToNm(11500, 0), H: MilsToNm(7600, 0)}
 }
 
+// AltiumJustification maps an Altium JUSTIFICATION value (0–8) to schema.Justify.
+// Out-of-range values default to BottomLeft (Altium's own default).
+func AltiumJustification(v int) schema.Justify {
+	if v >= 0 && v <= 8 {
+		return schema.Justify(v)
+	}
+	return schema.JustifyBottomLeft
+}
+
+// TextPositioning mirrors KiCad's SetTextPositioning (sch_io_altium.cpp): it maps
+// an Altium justification + absolute text orientation to a KiCad text angle and
+// alignment. The returned angle is always 0 or 90 (KiCad keeps text upright and
+// uses justification, never 180°/270°). The alignment values follow KiCad's
+// GR_TEXT_*_ALIGN sign convention:
+//
+//	h: -1 = left,   0 = center, +1 = right
+//	v: -1 = top,    0 = center, +1 = bottom
+//
+// orientDeg is the absolute text orientation in degrees (0/90/180/270), i.e.
+// RIGHTWARDS/UPWARDS/LEFTWARDS/DOWNWARDS.
+func TextPositioning(just schema.Justify, orientDeg schema.Angle) (angle, h, v int) {
+	switch just {
+	case schema.JustifyBottomLeft, schema.JustifyCenterLeft, schema.JustifyTopLeft:
+		h = -1
+	case schema.JustifyBottomRight, schema.JustifyCenterRight, schema.JustifyTopRight:
+		h = +1
+	default: // center column
+		h = 0
+	}
+
+	switch just {
+	case schema.JustifyTopLeft, schema.JustifyTopCenter, schema.JustifyTopRight:
+		v = -1
+	case schema.JustifyCenterLeft, schema.JustifyCenterCenter, schema.JustifyCenterRight:
+		v = 0
+	default: // bottom row (Altium default)
+		v = +1
+	}
+
+	switch int(NormalizeAngle(orientDeg) + 0.5) {
+	case 90: // UPWARDS
+		angle = 90
+	case 180: // LEFTWARDS
+		h = -h
+		angle = 0
+	case 270: // DOWNWARDS
+		h = -h
+		angle = 90
+	default: // RIGHTWARDS
+		angle = 0
+	}
+	return angle, h, v
+}
+
+// CompensateFieldForInstanceRotation adjusts a field's absolute KiCad text angle
+// and justification into the values to STORE on a rotated symbol instance.
+//
+// KiCad treats a symbol field's stored angle as relative to the instance's
+// placement rotation: at render time it adds the instance rotation, keeps the
+// text upright (folding 180°/270° back to 0°/90°) and flips the horizontal
+// justification when it does. The stored position, by contrast, is absolute.
+// So to make a field render at the intended absolute (angle, h, v) on an
+// instance placed at instRotDeg, we pre-apply the inverse of that transform.
+//
+// angle is 0 or 90; h/v use KiCad's signed alignment (h: -1 left/+1 right,
+// v: -1 top/+1 bottom). This mirrors AdjustFieldForSymbolOrientation in the
+// reference importer (sch_io_altium.cpp), keyed to this emitter's placement
+// convention (instance angle == component orientation × 90°).
+func CompensateFieldForInstanceRotation(angle, h, v, instRotDeg int) (int, int, int) {
+	instRot := (((instRotDeg/90)%4 + 4) % 4) * 90 // normalise to 0/90/180/270
+
+	// Stored angle so that (stored + instRot) is congruent to the desired
+	// rendered angle modulo 180 (text stays upright: 0 or 90).
+	stored := (((angle-instRot)%180 + 180) % 180)
+
+	// If reaching the desired rendered angle requires a net 180° turn, KiCad's
+	// upright fold (point reflection) negates BOTH justification axes, so
+	// pre-negate them here to cancel it.
+	net := (stored + instRot) % 360
+	if (net-angle+360)%360 == 180 {
+		h = -h
+		v = -v
+	}
+	return stored, h, v
+}
+
 // NormalizeAngle returns angle modulo 360 in [0, 360).
 func NormalizeAngle(a schema.Angle) schema.Angle {
 	a = a - 360*float64(int(a/360))
