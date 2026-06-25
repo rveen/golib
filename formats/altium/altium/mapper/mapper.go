@@ -526,7 +526,7 @@ func (m *mapper) buildSheetSymbol(streamPos int, r record.Record) *schema.SheetS
 	for _, c := range m.children[streamPos-1] {
 		switch c.Type {
 		case record.TypeSheetEntry:
-			ss.Entries = append(ss.Entries, m.buildSheetEntry(c, loc, xs))
+			ss.Entries = append(ss.Entries, m.buildSheetEntry(c, loc, xs, ys))
 		case record.TypeSheetName:
 			ss.Name = c.UTF8Str("TEXT")
 		case record.TypeFileName:
@@ -540,9 +540,9 @@ func (m *mapper) buildSheetSymbol(streamPos int, r record.Record) *schema.SheetS
 // schema.SheetEntry. The entry sits on one edge of the parent box: SIDE 0/1
 // select the left/right edge, 2/3 the top/bottom edge. DISTANCEFROMTOP locates
 // it along that edge, measured (in units of 100 mil) from the top for vertical
-// edges or from the left for horizontal ones. loc is the box top-left corner
-// (Y-up) and xs/ys its width.
-func (m *mapper) buildSheetEntry(r record.Record, loc schema.Point, xs schema.Length) schema.SheetEntry {
+// edges (left/right) or from the left for horizontal ones (top/bottom). loc is
+// the box top-left corner (Y-up) and xs/ys its width/height.
+func (m *mapper) buildSheetEntry(r record.Record, loc schema.Point, xs, ys schema.Length) schema.SheetEntry {
 	// DISTANCEFROMTOP is in units of 100 mil (10× the decamil coordinate grid),
 	// so scaleToNm's mils argument is the raw value ×10.
 	dist := m.scaleToNm(r.IntDef("DISTANCEFROMTOP", 0)*10, r.IntDef("DISTANCEFROMTOP_FRAC1", 0))
@@ -550,6 +550,10 @@ func (m *mapper) buildSheetEntry(r record.Record, loc schema.Point, xs schema.Le
 	switch r.IntDef("SIDE", 0) {
 	case 1: // right edge
 		pos = schema.Point{X: loc.X + xs, Y: loc.Y - dist}
+	case 2: // top edge: dist runs from the left, Y at the box top
+		pos = schema.Point{X: loc.X + dist, Y: loc.Y}
+	case 3: // bottom edge: dist runs from the left, Y at the box bottom
+		pos = schema.Point{X: loc.X + dist, Y: loc.Y - ys}
 	}
 	return schema.SheetEntry{
 		Name:      r.UTF8Str("NAME"),

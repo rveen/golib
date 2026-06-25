@@ -53,8 +53,10 @@ func TestEmitFromTestSchDoc(t *testing.T) {
 	if !strings.Contains(s, "(wire") {
 		t.Error("output missing wires")
 	}
-	if !strings.Contains(s, "(label ") {
-		t.Error("output missing net labels")
+	// test.SchDoc carries Altium ports (→ hierarchical_label) rather than plain
+	// net labels, so check for the labels this fixture actually produces.
+	if !strings.Contains(s, "(hierarchical_label ") {
+		t.Error("output missing hierarchical labels")
 	}
 
 	// Write golden file if UPDATE_GOLDEN=1 is set.

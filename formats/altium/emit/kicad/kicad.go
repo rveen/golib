@@ -474,17 +474,18 @@ func writeSheetProp(w *sexprWriter, name, value string, x, y float64, hide bool)
 }
 
 // writeSheetPin emits one (pin …) of a sheet symbol. The pin angle and text
-// justification follow the box edge the entry sits on: left edge → angle 180,
-// right edge → angle 0.
+// justification follow the box edge the entry sits on, with the label always
+// pointing away from the box: left edge → angle 180/left, right edge → angle
+// 0/right, top edge → angle 90/right, bottom edge → angle 270/left.
 func writeSheetPin(w *sexprWriter, ss *schema.SheetSymbol, e schema.SheetEntry) {
 	angle, hjust := 180, -1 // left edge
 	switch {
 	case e.Pos.X == ss.Box.Max.X: // right edge
 		angle, hjust = 0, +1
 	case e.Pos.Y == ss.Box.Max.Y: // top edge
-		angle, hjust = 90, -1
+		angle, hjust = 90, +1
 	case e.Pos.Y == ss.Box.Min.Y: // bottom edge
-		angle, hjust = 270, +1
+		angle, hjust = 270, -1
 	}
 	w.open("pin", q(convert.OverbarAltiumToKicad(e.Name)), sheetPinShape(e.Direction))
 	w.line(fmt.Sprintf("(at %s %s %d)", f(w.kx(e.Pos.X)), f(w.ky(e.Pos.Y)), angle))
@@ -809,16 +810,14 @@ func writePowerPortInstance(w *sexprWriter, sh *schema.Sheet, pp *schema.PowerPo
 
 	// Reference property: always hidden.
 	writePropAt(w, "Reference", "#PWR", x, y, 0, 0, 0, schema.DefaultFontHeight, true)
-	// Value property: show the net name if ShowNetName. The label is offset beyond
-	// the graphic, on the side the port points (pp.Rot), so a positive rail reads
-	// above its bar and a ground reads below its symbol rather than sitting on the
-	// wire. Placing it at the bare connection point (no offset) would overlap the
-	// graphic and read on the wrong side.
-	dist := powerLabelDistance(pp.Style)
-	rad := deg2rad(float64(pp.Rot))
-	lx := pp.Pos.X + schema.Length(math.Round(math.Cos(rad)*dist))
-	ly := pp.Pos.Y + schema.Length(math.Round(math.Sin(rad)*dist))
-	writePropAt(w, "Value", convert.OverbarAltiumToKicad(pp.NetName), w.kx(lx), w.ky(ly), 0, 0, 0, sh.FontHeight(pp.Font), !pp.ShowNetName)
+	// Value property: always hidden. The net name is shown instead as a standalone
+	// (text) element below (see writePowerPortLabel). A power symbol's value field
+	// is rendered at its stored angle by KiCad but with the instance rotation added
+	// by Kicanvas, so for a rotated port the two viewers disagree (vertical vs
+	// horizontal). A standalone text has no parent symbol, so its angle is absolute
+	// in both viewers — the net name then reads horizontally everywhere while the
+	// power symbol keeps its global-net (#PWR) connectivity.
+	writePropAt(w, "Value", convert.OverbarAltiumToKicad(pp.NetName), x, y, 0, 0, 0, sh.FontHeight(pp.Font), true)
 
 	w.open("pin", q("1"))
 	w.writeUUID(makeUUID(fmt.Sprintf("pp_pin:%d:%d:%s", pp.Pos.X, pp.Pos.Y, pp.NetName)))
@@ -826,7 +825,48 @@ func writePowerPortInstance(w *sexprWriter, sh *schema.Sheet, pp *schema.PowerPo
 
 	writeInstances(w, projName, rootUUID, "#PWR", 1)
 
+	w.close() // symbol
+
+	if pp.ShowNetName {
+		writePowerPortLabel(w, sh, pp)
+	}
+}
+
+// writePowerPortLabel emits the power port's net name as a standalone schematic
+// (text) element, always horizontal. The anchor sits beyond the symbol graphic
+// in the port's pointing direction (pp.Rot); the justification then extends the
+// text further outward so its near edge clears the graphic: a port pointing
+// right/left is left/right-justified, one pointing up/down is bottom/top-justified.
+func writePowerPortLabel(w *sexprWriter, sh *schema.Sheet, pp *schema.PowerPort) {
+	dist := powerLabelDistance(pp.Style)
+	rad := deg2rad(float64(pp.Rot))
+	lx := pp.Pos.X + schema.Length(math.Round(math.Cos(rad)*dist))
+	ly := pp.Pos.Y + schema.Length(math.Round(math.Sin(rad)*dist))
+	h, v := powerLabelJustify(pp.Rot)
+
+	w.open("text", q(convert.OverbarAltiumToKicad(pp.NetName)))
+	w.line(fmt.Sprintf("(at %s %s 0)", f(w.kx(lx)), f(w.ky(ly))))
+	w.line(fmt.Sprintf("(effects (font %s)%s)", fontSize(sh.FontHeight(pp.Font)), justifyClause(h, v)))
+	w.writeUUID(makeUUID(fmt.Sprintf("pp_lbl:%d:%d:%s", pp.Pos.X, pp.Pos.Y, pp.NetName)))
 	w.close()
+}
+
+// powerLabelJustify returns the KiCad-signed justification (h: -1 left/+1 right,
+// v: -1 top/+1 bottom) that anchors a horizontal label by the edge nearest the
+// power symbol, so the text extends away from the graphic in screen space. The
+// argument is the Altium pointing direction (Y-up); the +Y up vs KiCad's +Y down
+// flip is why pointing up (90°) maps to "bottom" and pointing down (270°) to "top".
+func powerLabelJustify(rot schema.Angle) (h, v int) {
+	switch ((int(rot) % 360) + 360) % 360 {
+	case 0: // points right → text to the right, anchored at its left edge
+		return -1, 0
+	case 180: // points left → text to the left, anchored at its right edge
+		return +1, 0
+	case 90: // points up → text above, anchored at its bottom edge
+		return 0, +1
+	default: // 270, points down → text below, anchored at its top edge
+		return 0, -1
+	}
 }
 
 func writeText(w *sexprWriter, sh *schema.Sheet, t *schema.Text) {
