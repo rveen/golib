@@ -1,7 +1,8 @@
 package kicadpcb
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 
 	"github.com/rveen/golib/formats/altium/schema"
 )
@@ -91,10 +92,58 @@ func bridgeCrossesAny(a, b schema.Point, contour []schema.Point) bool {
 	return false
 }
 
+// bridgeDist2 returns the squared distance between contour vertex cur[oi] and
+// hole vertex hole[hi].
+func bridgeDist2(cur, hole []schema.Point, oi, hi int) float64 {
+	dx := float64(cur[oi].X - hole[hi].X)
+	dy := float64(cur[oi].Y - hole[hi].Y)
+	return dx*dx + dy*dy
+}
+
+// bridgeOK reports whether the bridge cur[oi]-hole[hi] can be used: it must not
+// properly cross either the contour or the hole boundary.
+func bridgeOK(cur, hole []schema.Point, oi, hi int) bool {
+	o, h := cur[oi], hole[hi]
+	return !bridgeCrossesAny(o, h, cur) && !bridgeCrossesAny(o, h, hole)
+}
+
+// mergeBridge weaves hole into cur through the slit at cur[oi]-hole[hi]:
+//
+//	cur[0..oi] -> hole[hi..] -> hole[..hi] -> hole[hi] -> cur[oi] -> cur[oi+1..]
+func mergeBridge(cur, hole []schema.Point, oi, hi int) []schema.Point {
+	merged := make([]schema.Point, 0, len(cur)+len(hole)+2)
+	merged = append(merged, cur[:oi+1]...)
+	for k := 0; k < len(hole); k++ {
+		merged = append(merged, hole[(hi+k)%len(hole)])
+	}
+	merged = append(merged, hole[hi]) // close the hole loop
+	merged = append(merged, cur[oi:]...)
+	return merged
+}
+
 // bridgeHole merges one hole into the current contour by finding a collision-free
 // bridge between a hole vertex and a contour vertex (preferring the shortest).
 // Returns the merged contour and true on success.
 func bridgeHole(cur, hole []schema.Point) ([]schema.Point, bool) {
+	// Fast path: the shortest bridge is almost always collision-free, so find the
+	// global-minimum-distance vertex pair in one pass and try it first — no
+	// O(len(cur)*len(hole)) candidate array and no sort.
+	bestOi, bestHi := -1, -1
+	var bestDist float64
+	for hi := range hole {
+		for oi := range cur {
+			d := bridgeDist2(cur, hole, oi, hi)
+			if bestOi < 0 || d < bestDist {
+				bestDist, bestOi, bestHi = d, oi, hi
+			}
+		}
+	}
+	if bestOi >= 0 && bridgeOK(cur, hole, bestOi, bestHi) {
+		return mergeBridge(cur, hole, bestOi, bestHi), true
+	}
+
+	// Slow path: the shortest bridge collided. Materialize all candidate pairs and
+	// try them in increasing-distance order until one is collision-free.
 	type cand struct {
 		oi, hi int
 		dist   float64
@@ -102,30 +151,23 @@ func bridgeHole(cur, hole []schema.Point) ([]schema.Point, bool) {
 	cands := make([]cand, 0, len(cur)*len(hole))
 	for hi := range hole {
 		for oi := range cur {
-			dx := float64(cur[oi].X - hole[hi].X)
-			dy := float64(cur[oi].Y - hole[hi].Y)
-			cands = append(cands, cand{oi, hi, dx*dx + dy*dy})
+			cands = append(cands, cand{oi, hi, bridgeDist2(cur, hole, oi, hi)})
 		}
 	}
-	sort.Slice(cands, func(i, j int) bool { return cands[i].dist < cands[j].dist })
-
+	slices.SortFunc(cands, func(a, b cand) int {
+		switch {
+		case a.dist < b.dist:
+			return -1
+		case a.dist > b.dist:
+			return 1
+		default:
+			return 0
+		}
+	})
 	for _, c := range cands {
-		o := cur[c.oi]
-		h := hole[c.hi]
-		// The bridge must not properly cross the contour or the hole boundary.
-		if bridgeCrossesAny(o, h, cur) || bridgeCrossesAny(o, h, hole) {
-			continue
+		if bridgeOK(cur, hole, c.oi, c.hi) {
+			return mergeBridge(cur, hole, c.oi, c.hi), true
 		}
-		// Build the slit-bridged contour:
-		//   cur[0..oi] -> hole[hi..] -> hole[..hi] -> hole[hi] -> cur[oi] -> cur[oi+1..]
-		merged := make([]schema.Point, 0, len(cur)+len(hole)+2)
-		merged = append(merged, cur[:c.oi+1]...)
-		for k := 0; k < len(hole); k++ {
-			merged = append(merged, hole[(c.hi+k)%len(hole)])
-		}
-		merged = append(merged, hole[c.hi]) // close the hole loop
-		merged = append(merged, cur[c.oi:]...)
-		return merged, true
 	}
 	return nil, false
 }
@@ -170,7 +212,7 @@ func fractureFill(outer []schema.Point, holes [][]schema.Point) ([]schema.Point,
 		}
 		hs = append(hs, prepped{hh, mx})
 	}
-	sort.Slice(hs, func(i, j int) bool { return hs[i].maxX > hs[j].maxX })
+	slices.SortFunc(hs, func(a, b prepped) int { return cmp.Compare(b.maxX, a.maxX) })
 
 	for _, hd := range hs {
 		merged, ok := bridgeHole(cur, hd.pts)

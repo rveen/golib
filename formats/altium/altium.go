@@ -6,6 +6,7 @@ package altium
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/rveen/golib/formats/altium/altium/mapper"
 	"github.com/rveen/golib/formats/altium/altium/pcbmapper"
@@ -18,6 +19,9 @@ import (
 // ConvertToKicadSch converts an Altium .SchDoc file (as a byte slice) to
 // KiCad .kicad_sch format, returning the output as a byte slice.
 func ConvertToKicadSch(in []byte) ([]byte, error) {
+
+	log.Printf("to be converted to kicad sch; size %d\n", len(in))
+
 	records, isBinary, err := reader.ReadBytes(in)
 	if err != nil {
 		return nil, fmt.Errorf("reading schematic: %w", err)
@@ -40,6 +44,8 @@ func ConvertToKicadSch(in []byte) ([]byte, error) {
 	if len(artifacts) == 0 {
 		return nil, fmt.Errorf("no output produced")
 	}
+
+	log.Printf("converted to kicad sch; size %d\n", len(artifacts[0].Data))
 	return artifacts[0].Data, nil
 }
 
@@ -63,5 +69,6 @@ func ConvertToKicadPcb(in []byte) ([]byte, error) {
 	if len(artifacts) == 0 {
 		return nil, fmt.Errorf("no output produced")
 	}
+	log.Printf("converted to kicad sch; size %d\n", len(artifacts[0].Data))
 	return artifacts[0].Data, nil
 }

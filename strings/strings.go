@@ -11,7 +11,6 @@ func New() interface{} {
 }
 
 func (str Strings) HasSuffix(a, b string) bool {
-	println("Strings.HasSuffix", a, b)
 	return strings.HasSuffix(a, b)
 }
 
@@ -30,4 +29,8 @@ func (str Strings) Substring(s string, a, b int64) string {
 
 func (str Strings) SpacesToPlus(s string) string {
 	return strings.ReplaceAll(s, " ", "+")
+}
+
+func (str Strings) ToLower(s string) string {
+	return strings.ToLower(s)
 }

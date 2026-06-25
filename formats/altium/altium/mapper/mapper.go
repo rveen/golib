@@ -111,8 +111,14 @@ func (m *mapper) buildSheet() *schema.Sheet {
 			if pp := m.buildPowerPort(r); pp != nil {
 				sh.PowerPorts = append(sh.PowerPorts, pp)
 			}
+		case record.TypePort:
+			if p := m.buildPort(r); p != nil {
+				sh.Ports = append(sh.Ports, p)
+			}
 		case record.TypeSheetSymbol:
-			// Handled in M5 hierarchy milestone.
+			if ss := m.buildSheetSymbol(i, r); ss != nil {
+				sh.SubSheets = append(sh.SubSheets, ss)
+			}
 		case record.TypeLabel, record.TypeTextFrame:
 			if t := m.buildText(r); t != nil {
 				sh.Texts = append(sh.Texts, t)
@@ -496,6 +502,107 @@ func (m *mapper) buildPowerPort(r record.Record) *schema.PowerPort {
 		Rot:         convert.ComponentOrientation(r.IntDef("ORIENTATION", 0)),
 		Font:        schema.FontRef(r.IntDef("FONTID", 0)),
 		Prov:        schema.Provenance{Record: r.Index, Kind: "POWER_PORT"},
+	}
+}
+
+// buildSheetSymbol converts an Altium SHEET_SYMBOL record (RECORD=15) and its
+// owned children into a schema.SheetSymbol. The box LOCATION is the top-left
+// corner (Y-up); XSIZE/YSIZE extend right and down. The owned children are the
+// sheet entries (RECORD=16) plus the SHEET_NAME (RECORD=32) and FILE_NAME
+// (RECORD=33) text records. Children are looked up by stream position exactly
+// like buildComponent (binary stores OWNERINDEX = parent_stream_pos − 1).
+func (m *mapper) buildSheetSymbol(streamPos int, r record.Record) *schema.SheetSymbol {
+	loc := m.readPointFrac(r, "LOCATION")
+	xs := m.scaleToNm(r.IntDef("XSIZE", 0), r.IntDef("XSIZE_FRAC", 0))
+	ys := m.scaleToNm(r.IntDef("YSIZE", 0), r.IntDef("YSIZE_FRAC", 0))
+
+	ss := &schema.SheetSymbol{
+		Box:   schema.RectBox{Min: schema.Point{X: loc.X, Y: loc.Y - ys}, Max: schema.Point{X: loc.X + xs, Y: loc.Y}},
+		Style: m.readStroke(r),
+		Fill:  m.readFill(r),
+		Prov:  schema.Provenance{Record: r.Index, Kind: "SHEET_SYMBOL"},
+	}
+
+	for _, c := range m.children[streamPos-1] {
+		switch c.Type {
+		case record.TypeSheetEntry:
+			ss.Entries = append(ss.Entries, m.buildSheetEntry(c, loc, xs))
+		case record.TypeSheetName:
+			ss.Name = c.UTF8Str("TEXT")
+		case record.TypeFileName:
+			ss.FileName = c.UTF8Str("TEXT")
+		}
+	}
+	return ss
+}
+
+// buildSheetEntry converts an Altium SHEET_ENTRY record (RECORD=16) to a
+// schema.SheetEntry. The entry sits on one edge of the parent box: SIDE 0/1
+// select the left/right edge, 2/3 the top/bottom edge. DISTANCEFROMTOP locates
+// it along that edge, measured (in units of 100 mil) from the top for vertical
+// edges or from the left for horizontal ones. loc is the box top-left corner
+// (Y-up) and xs/ys its width.
+func (m *mapper) buildSheetEntry(r record.Record, loc schema.Point, xs schema.Length) schema.SheetEntry {
+	// DISTANCEFROMTOP is in units of 100 mil (10× the decamil coordinate grid),
+	// so scaleToNm's mils argument is the raw value ×10.
+	dist := m.scaleToNm(r.IntDef("DISTANCEFROMTOP", 0)*10, r.IntDef("DISTANCEFROMTOP_FRAC1", 0))
+	pos := schema.Point{X: loc.X, Y: loc.Y - dist} // SIDE 0: left edge
+	switch r.IntDef("SIDE", 0) {
+	case 1: // right edge
+		pos = schema.Point{X: loc.X + xs, Y: loc.Y - dist}
+	}
+	return schema.SheetEntry{
+		Name:      r.UTF8Str("NAME"),
+		Direction: portDirection(r.IntDef("IOTYPE", 0)),
+		Pos:       pos,
+	}
+}
+
+// buildPort converts an Altium PORT record (a hierarchical inter-sheet
+// connector) to a schema.Port. The displayed text is in NAME.
+func (m *mapper) buildPort(r record.Record) *schema.Port {
+	name := r.UTF8Str("NAME")
+	if name == "" {
+		name = r.UTF8Str("TEXT")
+	}
+	// STYLE 0–3 are horizontal (None/Left/Right/Left&Right); 4–7 are vertical
+	// (None/Top/Bottom/Top&Bottom). The port body runs WIDTH from LOCATION.
+	return &schema.Port{
+		Name:      name,
+		Direction: portDirection(r.IntDef("IOTYPE", 0)),
+		Pos:       m.readPoint(r, "LOCATION"),
+		Width:     m.scaleToNm(r.IntDef("WIDTH", 0), 0),
+		Vertical:  r.IntDef("STYLE", 0) >= 4,
+		Just:      portJustification(r.IntDef("ALIGNMENT", 0)),
+		Font:      schema.FontRef(r.IntDef("FONTID", 0)),
+		Prov:      schema.Provenance{Record: r.Index, Kind: "PORT"},
+	}
+}
+
+// portDirection maps an Altium port IOTYPE to a schema.PortDir.
+func portDirection(io int) schema.PortDir {
+	switch io {
+	case 1:
+		return schema.PortOutput
+	case 2:
+		return schema.PortInput
+	case 3:
+		return schema.PortBidi
+	default:
+		return schema.PortUnspecified
+	}
+}
+
+// portJustification maps an Altium port ALIGNMENT (0 center, 1 left, 2 right)
+// to a schema.Justify anchored on the vertical centre.
+func portJustification(align int) schema.Justify {
+	switch align {
+	case 1:
+		return schema.JustifyCenterLeft
+	case 2:
+		return schema.JustifyCenterRight
+	default:
+		return schema.JustifyCenterCenter
 	}
 }
 

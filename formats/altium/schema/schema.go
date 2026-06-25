@@ -238,7 +238,11 @@ type PowerPort struct {
 type Port struct {
 	Name      string
 	Direction PortDir
-	Pos       Point
+	Pos       Point   // Altium LOCATION: one end of the port body
+	Width     Length  // length of the port body from Pos
+	Vertical  bool    // true if the port body runs vertically
+	Just      Justify // text anchor justification
+	Font      FontRef
 	Prov      Provenance
 }
 
@@ -247,6 +251,8 @@ type SheetSymbol struct {
 	FileName string
 	Name     string
 	Box      RectBox
+	Style    Stroke
+	Fill     *Color
 	Entries  []SheetEntry
 	Prov     Provenance
 }

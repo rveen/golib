@@ -16,6 +16,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/pprof"
 
 	"github.com/rveen/golib/formats/altium/altium/pcbmapper"
 	"github.com/rveen/golib/formats/altium/altium/pcbreader"
@@ -24,9 +26,18 @@ import (
 )
 
 func main() {
+	// run does the work and returns a process exit code. Keeping os.Exit out
+	// of run lets its deferred calls (notably pprof.StopCPUProfile) execute,
+	// which is required for a valid CPU profile.
+	os.Exit(run())
+}
+
+func run() int {
 	doKicad := flag.Bool("kicad", false, "convert to .kicad_pcb")
 	doInfo := flag.Bool("i", false, "print storage record counts")
 	outDir := flag.String("out", "", "output directory (default: directory of input file)")
+	cpuprofile := flag.String("cpuprofile", "", "write CPU profile to file")
+	memprofile := flag.String("memprofile", "", "write memory profile to file")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: pcbconv [options] file.PcbDoc\n\nOptions:\n")
@@ -36,7 +47,7 @@ func main() {
 
 	if flag.NArg() != 1 {
 		flag.Usage()
-		os.Exit(1)
+		return 2
 	}
 	path := flag.Arg(0)
 
@@ -48,6 +59,20 @@ func main() {
 		*outDir = filepath.Dir(path)
 	}
 
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: could not create CPU profile: %v\n", err)
+			return 1
+		}
+		defer f.Close()
+		if err := pprof.StartCPUProfile(f); err != nil {
+			fmt.Fprintf(os.Stderr, "error: could not start CPU profile: %v\n", err)
+			return 1
+		}
+		defer pprof.StopCPUProfile()
+	}
+
 	var err error
 	switch {
 	case *doInfo:
@@ -57,8 +82,24 @@ func main() {
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
+
+	if *memprofile != "" {
+		f, err := os.Create(*memprofile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: could not create memory profile: %v\n", err)
+			return 1
+		}
+		defer f.Close()
+		runtime.GC() // get up-to-date statistics
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			fmt.Fprintf(os.Stderr, "error: could not write memory profile: %v\n", err)
+			return 1
+		}
+	}
+
+	return 0
 }
 
 // ---------- info ----------

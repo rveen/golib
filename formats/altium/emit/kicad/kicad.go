@@ -112,6 +112,10 @@ func renderSheet(sh *schema.Sheet, syms map[schema.SymbolID]*schema.Symbol, rep 
 	for _, nl := range sh.NetLabels {
 		writeNetLabel(w, sh, nl)
 	}
+	connPts := connectionPoints(sh)
+	for _, p := range sh.Ports {
+		writePort(w, sh, p, connPts)
+	}
 	projName := sh.Name
 	if projName == "" {
 		projName = "schconv"
@@ -128,6 +132,10 @@ func renderSheet(sh *schema.Sheet, syms map[schema.SymbolID]*schema.Symbol, rep 
 			continue
 		}
 		writeSymbolInstance(w, sh, comp, sym, projName, rootUUID)
+	}
+	// Hierarchical sheet symbols (references to child sheets).
+	for _, ss := range sh.SubSheets {
+		writeSheetSymbol(w, ss)
 	}
 
 	// Sheet instances: required for KiCad to treat the sheet as the root and to
@@ -406,6 +414,117 @@ func writeSheetGraphic(w *sexprWriter, g schema.Graphic) {
 	}
 }
 
+// ---------- Hierarchical sheet symbols ----------
+
+// writeSheetSymbol emits an Altium sheet symbol as a KiCad (sheet …) block: the
+// box, its Sheetname/Sheetfile properties, and one (pin …) per sheet entry.
+//
+// KiCad's (at …) is the box top-left corner. In the schema (Y-up) that corner
+// is (Box.Min.X, Box.Max.Y); after the ky flip it becomes the visually top-left
+// point of the box in the KiCad (Y-down) sheet frame.
+func writeSheetSymbol(w *sexprWriter, ss *schema.SheetSymbol) {
+	atX, atY := w.kx(ss.Box.Min.X), w.ky(ss.Box.Max.Y)
+	width := mm(ss.Box.Max.X - ss.Box.Min.X)
+	height := mm(ss.Box.Max.Y - ss.Box.Min.Y)
+
+	w.open("sheet")
+	w.line(fmt.Sprintf("(at %s %s)", f(atX), f(atY)))
+	w.line(fmt.Sprintf("(size %s %s)", f(width), f(height)))
+	w.line("(exclude_from_sim no)")
+	w.line("(in_bom yes)")
+	w.line("(on_board yes)")
+	w.line("(dnp no)")
+	w.line("(fields_autoplaced yes)")
+	writeSheetStroke(w, ss.Style)
+	writeSheetFill(w, ss.Fill)
+	w.writeUUID(makeUUID("sheet:" + ss.Name + ":" + ss.FileName))
+
+	// The sheet name label sits just above the box top edge; the file name is
+	// hidden, anchored at the corner. KiCad re-places these (fields_autoplaced).
+	name := ss.Name
+	if name == "" {
+		name = "Sheet"
+	}
+	file := ss.FileName
+	if file != "" && !strings.HasSuffix(strings.ToLower(file), ".kicad_sch") {
+		file = strings.TrimSuffix(file, ".SchDoc")
+		file = strings.TrimSuffix(file, ".schdoc") + ".kicad_sch"
+	}
+	writeSheetProp(w, "Sheetname", name, atX, atY-0.508, false)
+	writeSheetProp(w, "Sheetfile", file, atX, atY, true)
+
+	for _, e := range ss.Entries {
+		writeSheetPin(w, ss, e)
+	}
+	w.close()
+}
+
+// writeSheetProp emits a sheet (property …) with KiCad's left-bottom-justified,
+// non-name-showing layout used for Sheetname/Sheetfile.
+func writeSheetProp(w *sexprWriter, name, value string, x, y float64, hide bool) {
+	w.open("property", q(name), q(value))
+	w.line(fmt.Sprintf("(at %s %s 0)", f(x), f(y)))
+	if hide {
+		w.line("(hide yes)")
+	}
+	w.line("(show_name no)")
+	w.line("(do_not_autoplace no)")
+	w.line("(effects (font (size 1.27 1.27)) (justify left bottom))")
+	w.close()
+}
+
+// writeSheetPin emits one (pin …) of a sheet symbol. The pin angle and text
+// justification follow the box edge the entry sits on: left edge → angle 180,
+// right edge → angle 0.
+func writeSheetPin(w *sexprWriter, ss *schema.SheetSymbol, e schema.SheetEntry) {
+	angle, hjust := 180, -1 // left edge
+	switch {
+	case e.Pos.X == ss.Box.Max.X: // right edge
+		angle, hjust = 0, +1
+	case e.Pos.Y == ss.Box.Max.Y: // top edge
+		angle, hjust = 90, -1
+	case e.Pos.Y == ss.Box.Min.Y: // bottom edge
+		angle, hjust = 270, +1
+	}
+	w.open("pin", q(convert.OverbarAltiumToKicad(e.Name)), sheetPinShape(e.Direction))
+	w.line(fmt.Sprintf("(at %s %s %d)", f(w.kx(e.Pos.X)), f(w.ky(e.Pos.Y)), angle))
+	w.writeUUID(makeUUID(fmt.Sprintf("sheetpin:%s:%d:%d:%s", ss.Name, e.Pos.X, e.Pos.Y, e.Name)))
+	w.line(fmt.Sprintf("(effects (font (size 1.27 1.27))%s)", justifyClause(hjust, 0)))
+	w.close()
+}
+
+// sheetPinShape maps a schema.PortDir to a KiCad sheet-pin electrical type.
+// KiCad uses the same shape tokens as hierarchical labels.
+func sheetPinShape(d schema.PortDir) string { return portShape(d) }
+
+// writeSheetStroke emits a sheet border stroke, carrying the Altium border color
+// so the box keeps its source appearance. KiCad's sheet stroke color alpha is a
+// 0–1 float (1 = opaque).
+func writeSheetStroke(w *sexprWriter, s schema.Stroke) {
+	wMM := mm(s.Width)
+	if wMM < 0.001 {
+		wMM = 0
+	}
+	c := s.Color
+	w.open("stroke")
+	w.line(fmt.Sprintf("(width %s)", f(wMM)))
+	w.line("(type solid)")
+	w.line(fmt.Sprintf("(color %d %d %d 1)", c.R, c.G, c.B))
+	w.close()
+}
+
+// writeSheetFill emits a sheet fill. A nil fill means no background; otherwise
+// the Altium area color is carried through (alpha as a 0–1 float).
+func writeSheetFill(w *sexprWriter, fill *schema.Color) {
+	if fill == nil {
+		w.line("(fill (type none))")
+		return
+	}
+	w.open("fill")
+	w.line(fmt.Sprintf("(color %d %d %d 1)", fill.R, fill.G, fill.B))
+	w.close()
+}
+
 // ---------- Connectivity ----------
 
 func writeWire(w *sexprWriter, wire *schema.Wire) {
@@ -448,6 +567,79 @@ func writeNetLabel(w *sexprWriter, sh *schema.Sheet, nl *schema.NetLabel) {
 	w.line(fmt.Sprintf("(effects (font %s)%s)", fontSize(sh.FontHeight(nl.Font)), justifyClause(h, v)))
 	w.writeUUID(makeUUID(fmt.Sprintf("nl:%d:%d:%s", nl.Pos.X, nl.Pos.Y, nl.Text)))
 	w.close()
+}
+
+// connectionPoints collects every wire and bus vertex on the sheet. A port
+// connects at whichever of its two ends coincides with one of these points.
+func connectionPoints(sh *schema.Sheet) map[schema.Point]bool {
+	pts := make(map[schema.Point]bool)
+	for _, wire := range sh.Wires {
+		for _, pt := range wire.Points {
+			pts[pt] = true
+		}
+	}
+	for _, bus := range sh.Buses {
+		for _, pt := range bus.Points {
+			pts[pt] = true
+		}
+	}
+	return pts
+}
+
+// writePort emits an Altium port as a KiCad hierarchical_label. The port name
+// becomes the label text; the data-flow direction becomes the label shape.
+//
+// An Altium port has a body that runs Width from its LOCATION (Pos). The
+// electrical connection — and thus the KiCad label anchor — is at whichever
+// body end touches a wire, exactly as KiCad's own Altium importer determines it.
+// The Altium ALIGNMENT is only the text alignment within the body and does NOT
+// indicate the connection side, so it is not used here. The label then points
+// away from the wire: an end-connected horizontal port points left (angle 180,
+// right-justified); a start-connected one points right (angle 0, left-justified).
+func writePort(w *sexprWriter, sh *schema.Sheet, p *schema.Port, connPts map[schema.Point]bool) {
+	start := p.Pos
+	end := p.Pos
+	if p.Vertical {
+		end.Y -= p.Width
+	} else {
+		end.X += p.Width
+	}
+	// Prefer the end terminus only when it (and not the start) meets a wire;
+	// otherwise anchor at the start. This reproduces the observed placement and
+	// gives a stable fallback when neither or both ends are connected.
+	useEnd := connPts[end] && !connPts[start]
+
+	conn := start
+	angle, h := 0, -1
+	switch {
+	case p.Vertical && useEnd:
+		conn, angle, h = end, 270, +1
+	case p.Vertical:
+		conn, angle, h = start, 90, -1
+	case useEnd:
+		conn, angle, h = end, 180, +1
+	}
+
+	w.open("hierarchical_label", q(convert.OverbarAltiumToKicad(p.Name)))
+	w.line(fmt.Sprintf("(shape %s)", portShape(p.Direction)))
+	w.line(fmt.Sprintf("(at %s %s %d)", f(w.kx(conn.X)), f(w.ky(conn.Y)), angle))
+	w.line(fmt.Sprintf("(effects (font %s)%s)", fontSize(sh.FontHeight(p.Font)), justifyClause(h, 0)))
+	w.writeUUID(makeUUID(fmt.Sprintf("port:%d:%d:%s", p.Pos.X, p.Pos.Y, p.Name)))
+	w.close()
+}
+
+// portShape maps a schema.PortDir to a KiCad hierarchical_label shape token.
+func portShape(d schema.PortDir) string {
+	switch d {
+	case schema.PortInput:
+		return "input"
+	case schema.PortOutput:
+		return "output"
+	case schema.PortBidi:
+		return "bidirectional"
+	default:
+		return "passive"
+	}
 }
 
 // justifyClause formats a KiCad " (justify …)" suffix from KiCad-signed
@@ -565,6 +757,21 @@ func writePowerBodyGraphic(w *sexprWriter, style schema.PowerStyle) {
 	}
 }
 
+// powerLabelDistance returns, in nanometres, how far the net-name label sits
+// from the connection point along the port's pointing direction. It clears the
+// style's graphic body (see writePowerBodyGraphic) plus a margin for the text.
+func powerLabelDistance(style schema.PowerStyle) float64 {
+	const margin = 1.524e6 // 60 mil
+	switch style {
+	case schema.PowerStyleGND:
+		return 1.524e6 + margin // bottom bar at -b3off
+	case schema.PowerStyleEarth:
+		return 1.905e6 + margin // bottom bar at -e4off
+	default: // Bar, Arrow, Tee — single bar at -stemLen
+		return 0.762e6 + margin
+	}
+}
+
 // writeInstances emits the (instances …) block that binds a symbol placement to
 // a reference designator on the root sheet. Without this block KiCad treats the
 // symbol as unannotated and ignores the Reference property text.
@@ -583,11 +790,14 @@ func writePowerPortInstance(w *sexprWriter, sh *schema.Sheet, pp *schema.PowerPo
 	libID := powerLibID(pp.NetName)
 	x := w.kx(pp.Pos.X)
 	y := w.ky(pp.Pos.Y)
-	// KiCad placement angle: the lib_symbol body is at −Y in lib Y-up.
-	// After lib→sheet Y-flip, it is at +Y (below) in the schematic.
-	// Rotating by kicadAngle in the schematic places the body in the direction
-	// of pp.Rot: (270−pp.Rot) maps ORIENTATION=3→0°, ORIENTATION=1→180°, etc.
-	kicadAngle := ((270-int(pp.Rot))%360 + 360) % 360
+	// KiCad placement angle: the lib_symbol body is at −Y in lib Y-up, so after
+	// the lib→sheet Y-flip it points down (the +Y screen direction) at angle 0 —
+	// the same as ORIENTATION=3 (pp.Rot=270). The body must end up pointing along
+	// pp.Rot, which the lib→sheet flip turns into kicadAngle = pp.Rot + 90:
+	// ORIENTATION=0→90°, 1→180°, 2→270°, 3→0°. The earlier (270−pp.Rot) form
+	// happened to agree for the vertical orientations (90/270) but was 180° off
+	// for the horizontal ones (0/180), flipping e.g. GND_HS1/HS2/HS3/LS_DRV.
+	kicadAngle := ((int(pp.Rot)+90)%360 + 360) % 360
 
 	w.open("symbol")
 	w.line(fmt.Sprintf("(lib_id %s)", q(libID)))
@@ -599,8 +809,16 @@ func writePowerPortInstance(w *sexprWriter, sh *schema.Sheet, pp *schema.PowerPo
 
 	// Reference property: always hidden.
 	writePropAt(w, "Reference", "#PWR", x, y, 0, 0, 0, schema.DefaultFontHeight, true)
-	// Value property: show the net name if ShowNetName.
-	writePropAt(w, "Value", convert.OverbarAltiumToKicad(pp.NetName), x, y, 0, 0, 0, sh.FontHeight(pp.Font), !pp.ShowNetName)
+	// Value property: show the net name if ShowNetName. The label is offset beyond
+	// the graphic, on the side the port points (pp.Rot), so a positive rail reads
+	// above its bar and a ground reads below its symbol rather than sitting on the
+	// wire. Placing it at the bare connection point (no offset) would overlap the
+	// graphic and read on the wrong side.
+	dist := powerLabelDistance(pp.Style)
+	rad := deg2rad(float64(pp.Rot))
+	lx := pp.Pos.X + schema.Length(math.Round(math.Cos(rad)*dist))
+	ly := pp.Pos.Y + schema.Length(math.Round(math.Sin(rad)*dist))
+	writePropAt(w, "Value", convert.OverbarAltiumToKicad(pp.NetName), w.kx(lx), w.ky(ly), 0, 0, 0, sh.FontHeight(pp.Font), !pp.ShowNetName)
 
 	w.open("pin", q("1"))
 	w.writeUUID(makeUUID(fmt.Sprintf("pp_pin:%d:%d:%s", pp.Pos.X, pp.Pos.Y, pp.NetName)))
@@ -646,7 +864,16 @@ func writeSymbolInstance(w *sexprWriter, sh *schema.Sheet, comp *schema.Componen
 	// (geometry-hashed, hence distinct) lib_symbol. Re-rotation alone then
 	// reproduces the true absolute pin positions; emitting a KiCad mirror on
 	// top would double-mirror the part.
-	w.line(fmt.Sprintf("(unit %d)", comp.Unit))
+	//
+	// Each converted lib_symbol is a self-contained, single-unit definition:
+	// every pin lands in the localName_1_1 sub-symbol and the body graphics in
+	// localName_0_1. The original Altium multi-unit split (CURRENTPARTID) is
+	// flattened away — each placed part becomes its own geometry-hashed symbol.
+	// So the instance must always reference unit 1; emitting comp.Unit (e.g. 2)
+	// makes KiCad/Kicanvas look for a non-existent localName_2_1 sub-symbol and
+	// silently drop the pins (and their wire stubs).
+	const instUnit = 1
+	w.line(fmt.Sprintf("(unit %d)", instUnit))
 	w.line("(in_bom yes)")
 	w.line("(on_board yes)")
 	w.line("(dnp no)")
@@ -693,7 +920,18 @@ func writeSymbolInstance(w *sexprWriter, sh *schema.Sheet, comp *schema.Componen
 		fieldPropAt(w, name, fld.Value, fx, fy, fld.Just, fld.Rot, comp.Rotation, sh.FontHeight(fld.Font), !fld.Visible)
 	}
 
-	writeInstances(w, projName, rootUUID, comp.Designator, comp.Unit)
+	// Per-pin instance entries. KiCad (and Kicanvas) draw a symbol's pins — and
+	// their connecting stubs — from the (pin …) children of the *instance*, not
+	// from the lib_symbol directly: each instance pin is matched by number to the
+	// lib_symbol definition to obtain its geometry. Omitting these makes the pins
+	// (and stubs) silently invisible even though the lib_symbol defines them.
+	for _, p := range sym.Pins {
+		w.open("pin", q(p.Number))
+		w.writeUUID(makeUUID(fmt.Sprintf("comppin:%s:%d:%s", comp.Designator, comp.Prov.Record, p.Number)))
+		w.close()
+	}
+
+	writeInstances(w, projName, rootUUID, comp.Designator, instUnit)
 
 	w.close()
 }

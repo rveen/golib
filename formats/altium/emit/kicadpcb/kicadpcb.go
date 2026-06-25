@@ -634,12 +634,28 @@ func writeArcInFootprint(w *sexprWriter, a *pcbschema.Arc, comp *pcbschema.Compo
 		))
 		return
 	}
-	startRad := -deg2rad(a.StartAngle)
-	endRad := -deg2rad(a.EndAngle)
-	midRad := (startRad + endRad) / 2
+	// Altium sweeps CCW from StartAngle to EndAngle and may wrap past 360°.
+	// Unwrap so end > start before taking the midpoint, otherwise a wrapping
+	// arc (e.g. 350°→10°) puts the mid point on the opposite side of the circle.
+	startDeg, endDeg := a.StartAngle, a.EndAngle
+	if endDeg < startDeg {
+		endDeg += 360
+	}
+	startRad := -deg2rad(startDeg)
+	endRad := -deg2rad(endDeg)
+	midRad := -deg2rad((startDeg + endDeg) / 2)
 	sx, sy := fpRot(comp, relCX+r*math.Cos(startRad), relCY+r*math.Sin(startRad))
 	mx, my := fpRot(comp, relCX+r*math.Cos(midRad), relCY+r*math.Sin(midRad))
 	ex, ey := fpRot(comp, relCX+r*math.Cos(endRad), relCY+r*math.Sin(endRad))
+	// Collinear start/mid/end make KiCanvas compute a non-finite circle and emit
+	// NaN geometry that blanks the board; emit a straight line instead (see
+	// arcIsDegenerate).
+	if arcIsDegenerate(sx, sy, mx, my, ex, ey) {
+		w.line(fmt.Sprintf("(fp_line (start %s %s) (end %s %s) (stroke (width %s) (type solid)) (layer %s))",
+			f4(sx), f4(sy), f4(ex), f4(ey), f4(mm(a.Width)), q(layerName),
+		))
+		return
+	}
 	w.line(fmt.Sprintf("(fp_arc (start %s %s) (mid %s %s) (end %s %s) (width %s) (layer %s))",
 		f4(sx), f4(sy), f4(mx), f4(my), f4(ex), f4(ey),
 		f4(mm(a.Width)), q(layerName),
@@ -759,7 +775,7 @@ func writeVia(w *sexprWriter, v *pcbschema.Via, nets []*pcbschema.Net) {
 // writeArc emits a (segment/arc ...) for a board-level arc.
 // KiCad 7+ arc format: (arc (start X Y) (mid X Y) (end X Y) ...).
 func writeArc(w *sexprWriter, a *pcbschema.Arc, nets []*pcbschema.Net) {
-	_, layerName, _ := kicadLayerFromAltium(a.Layer)
+	_, layerName, layerType := kicadLayerFromAltium(a.Layer)
 	netNum := kicadNet(a.Net)
 	// A full-circle "arc" (Altium start=0, end=360) must be a circle, not an arc:
 	// a degenerate arc with start==end crashes KiCad. (cf. altium_pcb.cpp:3203)
@@ -774,6 +790,23 @@ func writeArc(w *sexprWriter, a *pcbschema.Arc, nets []*pcbschema.Net) {
 		return
 	}
 	sx, sy, mx, my, ex, ey := arcPoints(a)
+	// A near-zero-span arc has collinear start/mid/end. KiCanvas derives the arc
+	// from those three points and computes an infinite circumcenter for collinear
+	// input, yielding NaN geometry that blanks the whole board. Emit a straight
+	// line instead (copper → segment, otherwise → gr_line); it is visually
+	// identical for such a sub-micron sliver. (See arcIsDegenerate.)
+	if arcIsDegenerate(sx, sy, mx, my, ex, ey) {
+		if layerType == "signal" {
+			w.line(fmt.Sprintf("(segment (start %s %s) (end %s %s) (width %s) (layer %s) (net %d))",
+				f4(sx), f4(sy), f4(ex), f4(ey), f4(mm(a.Width)), q(layerName), netNum,
+			))
+		} else {
+			w.line(fmt.Sprintf("(gr_line (start %s %s) (end %s %s) (stroke (width %s) (type solid)) (layer %s))",
+				f4(sx), f4(sy), f4(ex), f4(ey), f4(mm(a.Width)), q(layerName),
+			))
+		}
+		return
+	}
 	w.line(fmt.Sprintf("(arc (start %s %s) (mid %s %s) (end %s %s) (width %s) (layer %s) (net %d))",
 		f4(sx), f4(sy),
 		f4(mx), f4(my),
@@ -782,6 +815,17 @@ func writeArc(w *sexprWriter, a *pcbschema.Arc, nets []*pcbschema.Net) {
 		q(layerName),
 		netNum,
 	))
+}
+
+// arcIsDegenerate reports whether an arc's start/mid/end are effectively
+// collinear, i.e. a zero-/near-zero-span sliver. The value is twice the signed
+// area of triangle(start, mid, end), which goes to zero as the points become
+// collinear. KiCad tolerates such arcs, but KiCanvas's three-point circle fit
+// returns a non-finite center/radius for them and emits NaN vertices, aborting
+// the entire paint pass. Callers emit a straight line in that case.
+func arcIsDegenerate(sx, sy, mx, my, ex, ey float64) bool {
+	area := math.Abs((mx-sx)*(ey-sy) - (ex-sx)*(my-sy))
+	return area < 1e-6
 }
 
 // isFullCircle reports whether an arc spans a full 360° (Altium stores these as
@@ -799,9 +843,16 @@ func arcPoints(a *pcbschema.Arc) (sx, sy, mx, my, ex, ey float64) {
 
 	// Altium angles: CCW in Y-up. In KiCad Y-down the arc is CW.
 	// Negate angles to convert CCW-Y-up → CW-Y-down.
-	startRad := -deg2rad(a.StartAngle)
-	endRad := -deg2rad(a.EndAngle)
-	midRad := (startRad + endRad) / 2
+	// Altium sweeps CCW from StartAngle to EndAngle and may wrap past 360°.
+	// Unwrap so end > start before taking the midpoint, otherwise a wrapping
+	// arc (e.g. 350°→10°) puts the mid point on the opposite side of the circle.
+	startDeg, endDeg := a.StartAngle, a.EndAngle
+	if endDeg < startDeg {
+		endDeg += 360
+	}
+	startRad := -deg2rad(startDeg)
+	endRad := -deg2rad(endDeg)
+	midRad := -deg2rad((startDeg + endDeg) / 2)
 
 	sx = cx + r*math.Cos(startRad)
 	sy = cy + r*math.Sin(startRad)
