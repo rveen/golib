@@ -99,22 +99,23 @@ func (fn *FNode) get(path string, raw, noRead bool) error {
 			return nil
 
 		case "":
-			// A part has been found that is not directly in the upper directory
-			// Cases:
-			// - _path: an entry in the directory
-			// - index.* file
+			// The segment names nothing directly in this directory. A wildcard
+			// entry (_path) may still claim it; otherwise the path is wrong.
+			//
+			// This used to fall back to the directory's own index.* file, which
+			// silently discarded the segment: /item/{id}/no-such-page rendered
+			// the item page with HTTP 200. A directory reached *without* a
+			// further segment still gets its index, from the "dir" case after
+			// this loop — that is where the fallback belongs.
 			fn.Path = savePath
 			fn.dir()
 
 			genericPart := fn.generic()
 
 			if genericPart == "" {
-				if !fn.index() {
-					return errors.New("404")
-				}
-			} else {
-				fn.Path += "/" + genericPart
+				return errors.New("404 (no such path: " + part + ")")
 			}
+			fn.Path += "/" + genericPart
 		}
 	}
 
@@ -165,10 +166,23 @@ func (fn *FNode) processFile(raw, noRead bool) error {
 	return nil
 }
 
+// generic matches an unresolved path segment against a wildcard directory: a
+// directory whose name starts with '_' captures the segment into Params under
+// its own name, and one ending in '_end' captures the whole remaining path.
+//
+// _tilde is deliberately not a candidate. It is reached only by a literal '~'
+// segment, handled above in Get, and a directory containing one would otherwise
+// swallow every unmatched sub-path: /item/{id}/typo resolved to
+// item/_id/_tilde, which returned 200 and a rendered page. A path that names
+// nothing must not look like it worked.
 func (fn *FNode) generic() string {
 
 	for _, entry := range fn.Data.Out {
 		token := entry.ThisString()
+
+		if token == "_tilde" {
+			continue
+		}
 
 		if token[0] == '_' {
 			if fn.Params == nil {
