@@ -1,0 +1,1 @@
+a plain directory with no index

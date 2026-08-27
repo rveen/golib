@@ -2,7 +2,9 @@ package fn
 
 import (
 	"errors"
+	"path/filepath"
 	"strings"
+	"unicode"
 )
 
 // Get returns the FNode that corresponds to the path given.
@@ -109,6 +111,15 @@ func (fn *FNode) get(path string, raw, noRead bool) error {
 			genericPart := fn.generic()
 
 			if genericPart == "" {
+				// info() has already established that this element is not
+				// there. The index fallback exists for a path *continuing into
+				// a document* (docs/cap1 -> a section of docs/index.md), not
+				// for a request naming a file: answering GET /app/missing.js
+				// with app/index.html is a 200 carrying the wrong bytes, which
+				// is worse than a 404 because nothing downstream can see it.
+				if namesAFile(part) {
+					return errors.New("404")
+				}
 				if !fn.index() {
 					return errors.New("404")
 				}
@@ -134,8 +145,12 @@ func (fn *FNode) get(path string, raw, noRead bool) error {
 
 	case "dir":
 		err := fn.dir()
-		if err == nil {
-			fn.index()
+		if err == nil && fn.index() {
+			// Only when index() moved fn.Path onto a real file. Without an
+			// index the node stays a directory: fn.Data holds the listing and
+			// fn.Content stays empty, which is what a caller rendering a
+			// directory listing needs. Calling file() here would only be an
+			// os.ReadFile on a directory, discarded.
 			fn.processFile(raw, noRead)
 		}
 		return err
@@ -202,4 +217,25 @@ func parts(path string) []string {
 		}
 	}
 	return st
+}
+
+// namesAFile reports whether a path element is asking for a file by name,
+// which is what separates GET /app/missing.js from GET /docs/cap1.
+//
+// The test is a filename extension containing at least one letter, not merely
+// a dot. filepath.Ext("1.2") is ".2", so a plain dot test would turn docs/1.2
+// -- a section number, a legitimate document part -- into a 404. Same for
+// docs/v0.98. Requiring a letter keeps those resolving while catching .js,
+// .css, .wasm, .map and the rest.
+func namesAFile(part string) bool {
+	ext := filepath.Ext(part)
+	if len(ext) < 2 {
+		return false
+	}
+	for _, r := range ext[1:] {
+		if unicode.IsLetter(r) {
+			return true
+		}
+	}
+	return false
 }

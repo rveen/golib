@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io/fs"
 
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -52,23 +51,107 @@ func (fn *FNode) GetMeta(path string) error {
 	return fn.get(path, false, true)
 }
 
+// indexExts ranks the extensions an index.*/readme.* file may carry. A
+// directory holding both index.css and index.html must serve the HTML: taking
+// the first entry in readdir order picked the stylesheet, and the browser was
+// handed a 200 of the wrong type.
+var indexExts = []string{".html", ".htm", ".md", ".ogdl", ".txt"}
+
+// indexRank scores a directory entry as an index candidate. Lower is better,
+// -1 means "not a candidate". index.* always outranks readme.*, and within
+// each the order above applies; an unlisted extension still qualifies, last,
+// so a lone index.json keeps working.
+func indexRank(name string) int {
+	base := 0
+	switch {
+	case strings.HasPrefix(name, "index."):
+		base = 0
+	case strings.HasPrefix(name, "readme."):
+		base = len(indexExts) + 1
+	default:
+		return -1
+	}
+
+	ext := filepath.Ext(name)
+	for i, e := range indexExts {
+		if ext == e {
+			return base + i
+		}
+	}
+	return base + len(indexExts)
+}
+
+// index moves fn.Path onto this directory's index.* or readme.* file and
+// returns true. An empty directory, or one with neither, leaves fn untouched
+// and returns false -- the caller then has a plain directory, with the listing
+// in fn.Data.
 func (fn *FNode) index() bool {
 
 	if fn.Data == nil || fn.Data.Out == nil {
-		log.Println("requesting fn.index with empty data")
+		// An empty directory is a normal thing to ask about, not a fault.
 		return false
 	}
+
+	best := ""
+	bestRank := -1
 
 	for _, entry := range fn.Data.Out {
 		name := entry.ThisString()
 
-		if strings.HasPrefix(name, "index.") || strings.HasPrefix(name, "readme.") {
-			fn.Path += "/" + name
-			fn.Type = fn.fileType()
-			return true
+		rank := indexRank(name)
+		if rank < 0 {
+			continue
+		}
+		if best == "" || rank < bestRank {
+			best, bestRank = name, rank
 		}
 	}
-	return false
+
+	if best == "" {
+		return false
+	}
+
+	fn.Path += "/" + best
+	fn.Type = fn.fileType()
+	return true
+}
+
+// IsDir reports whether there is a directory at exactly this path, relative to
+// fn.Root. It resolves nothing: no extension guessing, no index lookup, no
+// _wildcard matching, no continuing into a document.
+//
+// That restraint is the point. A caller redirecting directory URLs to a
+// trailing slash must not fire for URLs that merely resemble directories -- a
+// _user wildcard would send /user/rolf to a URL exposing the wildcard, which
+// does not resolve. Because IsDir is literal, /doc (which Get resolves to
+// doc.md by guessing an extension) and /doc/cap1 (a document part) are both
+// left alone.
+//
+// It does not modify its receiver, so it is safe to call on a root FNode
+// shared across requests.
+func (fn *FNode) IsDir(path string) bool {
+
+	pp := parts(path)
+
+	// The root is a directory, but it is already its own trailing slash and
+	// never needs a redirect. Report false so callers need no special case.
+	if len(pp) == 0 {
+		return false
+	}
+
+	for _, part := range pp {
+		if len(part) >= 1 && part[0] == '.' {
+			return false
+		}
+	}
+
+	p := fn.Root + "/" + strings.Join(pp, "/")
+
+	fi, err := fn.stat(p)
+	if err != nil {
+		return false
+	}
+	return fi.IsDir()
 }
 
 // Read a file into fn.Content (a byte array).
