@@ -101,10 +101,14 @@ func (fn *FNode) get(path string, raw, noRead bool) error {
 			return nil
 
 		case "":
-			// A part has been found that is not directly in the upper directory
-			// Cases:
-			// - _path: an entry in the directory
-			// - index.* file
+			// The segment names nothing directly in this directory. A wildcard
+			// entry (_path) may still claim it; otherwise the path is wrong.
+			//
+			// This used to fall back to the directory's own index.* file, which
+			// silently discarded the segment: /item/{id}/no-such-page rendered
+			// the item page with HTTP 200. A directory reached *without* a
+			// further segment still gets its index, from the "dir" case after
+			// this loop — that is where the fallback belongs.
 			fn.Path = savePath
 			fn.dir()
 
@@ -113,15 +117,28 @@ func (fn *FNode) get(path string, raw, noRead bool) error {
 			if genericPart == "" {
 				// info() has already established that this element is not
 				// there. The index fallback exists for a path *continuing into
-				// a document* (docs/cap1 -> a section of docs/index.md), not
-				// for a request naming a file: answering GET /app/missing.js
-				// with app/index.html is a 200 carrying the wrong bytes, which
-				// is worse than a 404 because nothing downstream can see it.
+				// a document* (docs/cap1 -> a section of docs/index.md), and
+				// only for that. Two things are not that, and both used to be
+				// answered 200 with the wrong bytes:
+				//
+				//   - a request naming a file. GET /app/missing.js answered
+				//     with app/index.html is a 200 nothing downstream can
+				//     see through -- the browser reports a MIME error.
+				//   - a directory whose index is a blob rather than a
+				//     document. item/_id/index.htm has no sections to
+				//     continue into, so /item/123/no-such-page rendered the
+				//     item page and a typo looked like it had worked.
+				//
+				// Only document and data indexes absorb a further segment,
+				// which is exactly what the cases above this one do with it.
 				if namesAFile(part) {
-					return errors.New("404")
+					return errors.New("404 (no such path: " + part + ")")
 				}
-				if !fn.index() {
-					return errors.New("404")
+				indexPath := fn.Path
+				if !fn.index() || (fn.Type != "document" && fn.Type != "data") {
+					fn.Path = indexPath
+					fn.Type = ""
+					return errors.New("404 (no such path: " + part + ")")
 				}
 			} else {
 				fn.Path += "/" + genericPart
@@ -180,10 +197,23 @@ func (fn *FNode) processFile(raw, noRead bool) error {
 	return nil
 }
 
+// generic matches an unresolved path segment against a wildcard directory: a
+// directory whose name starts with '_' captures the segment into Params under
+// its own name, and one ending in '_end' captures the whole remaining path.
+//
+// _tilde is deliberately not a candidate. It is reached only by a literal '~'
+// segment, handled above in Get, and a directory containing one would otherwise
+// swallow every unmatched sub-path: /item/{id}/typo resolved to
+// item/_id/_tilde, which returned 200 and a rendered page. A path that names
+// nothing must not look like it worked.
 func (fn *FNode) generic() string {
 
 	for _, entry := range fn.Data.Out {
 		token := entry.ThisString()
+
+		if token == "_tilde" {
+			continue
+		}
 
 		if token[0] == '_' {
 			if fn.Params == nil {
