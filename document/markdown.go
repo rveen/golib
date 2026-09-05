@@ -741,7 +741,17 @@ func paragraph(p *parser.Parser, head, pre string) {
 				p.UnreadByte()
 				break
 			}
-			if ogdl.IsBreakChar(c) {
+			// A blank line ends the paragraph, and so does the end of the
+			// document. Both break before the newline is appended, so a
+			// paragraph never carries a trailing one.
+			//
+			// IsEndChar is what was missing. Parser.Byte returns 0 at EOF and
+			// the second return value is discarded here, so a document ending
+			// in a single newline fell past both tests and appended that 0 to
+			// the paragraph below -- a NUL byte in the rendered HTML.
+			// Invisible in a browser, and enough to make grep, diff and every
+			// other text tool call the page binary.
+			if ogdl.IsBreakChar(c) || ogdl.IsEndChar(c) {
 				break
 			}
 			b = append(b, '\n')

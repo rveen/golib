@@ -188,3 +188,62 @@ func TestCodeBlockBlankLine(t *testing.T) {
 		t.Errorf("blank line in code block caused header parsing: %s", h)
 	}
 }
+
+// A document ending in a single newline used to render a NUL byte inside the
+// final paragraph: paragraph() reads a second byte after a line break to decide
+// whether the paragraph continues, Parser.Byte returns 0 at end of input, and
+// that 0 was neither recognised as an end character nor discarded, so it was
+// appended to the text. Invisible in a browser, and enough to make grep, diff
+// and every other text tool treat the page as binary.
+func TestNoNulByte(t *testing.T) {
+	for _, in := range []string{
+		"hello world\n",
+		"one\n\ntwo\n",
+		"# Title\n\nbody\n",
+		"- a\n- b\n",
+		"text with a [link](/a/b)\n",
+		"\n",
+		"",
+		"trailing spaces  \n",
+		"two trailing newlines\n\n",
+		"windows line ending\r\n",
+		"> quoted line\n",
+		"```go\nfmt.Println()\n```\n",
+		"![alt](/file/a.png)\n",
+		"| a | b |\n|---|---|\n| 1 | 2 |\n\ntail\n",
+		"body\n# Title\n",
+	} {
+		d, err := New(in)
+		if err != nil {
+			t.Fatalf("New(%q): %v", in, err)
+		}
+		if i := strings.IndexByte(d.Html(), 0); i != -1 {
+			t.Errorf("New(%q).Html() has a NUL at byte %d: %q", in, i, d.Html())
+		}
+	}
+}
+
+// The trailing newline carries no meaning, so its presence must not change the
+// rendering. This is the invariant behind TestNoNulByte: without it the bug can
+// come back as a stray "\n" in the text instead of a "\x00".
+func TestTrailingNewlineIsNotContent(t *testing.T) {
+	for _, in := range []string{
+		"hello world",
+		"one\n\ntwo",
+		"# Title\n\nbody",
+		"a sentence, and another",
+	} {
+		bare, err := New(in)
+		if err != nil {
+			t.Fatalf("New(%q): %v", in, err)
+		}
+		nl, err := New(in + "\n")
+		if err != nil {
+			t.Fatalf("New(%q): %v", in+"\n", err)
+		}
+		if bare.Html() != nl.Html() {
+			t.Errorf("a trailing newline changed the output\n  %q -> %q\n  %q -> %q",
+				in, bare.Html(), in+"\n", nl.Html())
+		}
+	}
+}
