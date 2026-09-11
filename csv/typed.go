@@ -8,7 +8,21 @@ import (
 // First file is the instance list of items, the rest of the
 // files are types that add fields to the instances if they match
 // Matching happens when an item has a type.
+//
+// Files that cannot be read are ignored. Use ReadTypedErr to get an
+// error instead.
 func ReadTyped(files []string) map[string]map[string]string {
+	m, _ := readTyped(files, false)
+	return m
+}
+
+// ReadTypedErr is ReadTyped, but returns an error if one of the files
+// cannot be read.
+func ReadTypedErr(files []string) (map[string]map[string]string, error) {
+	return readTyped(files, true)
+}
+
+func readTyped(files []string, strict bool) (map[string]map[string]string, error) {
 
 	var aa [][]map[string]string
 	// var map[string]map[string]string
@@ -19,7 +33,10 @@ func ReadTyped(files []string) map[string]map[string]string {
 		// Each map (each line in the CSV file) is an item
 		// If an item has a 'type' field, that is used later to
 		// build the type inheritance
-		a, _ := Read(file)
+		a, err := Read(file)
+		if err != nil && strict {
+			return nil, err
+		}
 
 		if len(a) != 0 {
 			aa = append(aa, a)
@@ -27,7 +44,7 @@ func ReadTyped(files []string) map[string]map[string]string {
 	}
 
 	if len(aa) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	// Before flattening we want to remember what are the (main) items,
@@ -59,7 +76,7 @@ func ReadTyped(files []string) map[string]map[string]string {
 		m[o["name"]] = o
 	}
 
-	return m
+	return m, nil
 }
 
 // Flatten aa[1...]
@@ -119,7 +136,7 @@ func addTypeInfo(typ string, o map[string]string, tt *[]map[string]string) {
 
 			for k, v := range t {
 				if k == "tags" || k == "type" {
-					o[k] += o[k] + " " + v
+					o[k] += " " + v
 				} else if o[k] == "" {
 					o[k] = v
 				}
