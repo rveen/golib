@@ -1,35 +1,40 @@
 # CSV reader
 
-There are two functions here:
+**Read(file string) ([]map[string]string, error)**
 
-**Read(file string) []map[string]string**
+Reads a CSV file and returns an array of maps, one map per row, except for
+the first row, which holds the field names.
 
-This function reads a CSV file and returns an array
-of maps, one map per row, except for the first row that
-is assumed to contain the field names. 
-
-Thus, each map is a row or line of the CSV file, where the keys
-are the field names taken from the first row, and the values
-are those found in the row being processed.
+Each map is a row of the CSV file: the keys are the field names from the first
+row, and the values are those of the row. Values are trimmed and empty values
+are left out. Lines starting with `#` are comments.
 
 **ReadTyped(files []string) map[string]map[string]string**
 
-This function reads one or more CSV files. A map is returned
-where each key is a value of the 'name' field in the first
-file, and the value is the row in the form of a map of fields 
-and their values.
+Reads one or more CSV files and returns the items of the first file, by the
+value of their `name` field, each with its fields.
 
-The rest of the files (2...N) are merged to one map of the same
-type as the one for the first file, and act as types for the 
-items in the first file. It works as follows: 
+The other files define types. An item, or a type, with a `type` field
+inherits the fields of the rows whose names it lists there:
 
-- any item with the same 'name' will have its fields merged.
-- any item with a 'type' field (in any file) inherits the fields of the item whose
-'name' appears in that field, recursively. That means that the final
-map returned contains the items in the first file augmented
-with fields from the rest of the files.
+- Rows with the same `name`, in the same or in different files, are merged:
+  for each field the earlier row wins (the first file before the second, and so
+  on), and `tags` and `type` add up.
+- An item gets its own fields first, then those of its types that it does not
+  have yet. The types are taken in the order the `type` field lists them, and
+  each type is resolved the same way, recursively. So the nearest definition
+  wins: an item over its type, a type over the type it has itself.
+- `tags` (and `type`) collect the words of the whole chain, nearest first,
+  without repetitions.
 
-The 'type' field can contain more than one name, for example "type1 type2".
-Spaces should be used as separators. Names should not contain spaces.
+The `type` field can hold more than one name, separated by spaces, for example
+`type1 type2`. Names must not contain spaces.
 
+Files that cannot be read are ignored. **ReadTypedErr** returns an error
+instead.
 
+**ReadTypedFields(files []string) (\*Typed, error)**
+
+Like ReadTypedErr, but every field value comes with the rows (file and name) it
+was taken from, and the result lists warnings for type names that no row
+defines and for type cycles.

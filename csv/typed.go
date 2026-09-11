@@ -2,15 +2,45 @@ package csv
 
 import (
 	"fmt"
-	// "strings"
+	"slices"
+	"strings"
 )
 
-// First file is the instance list of items, the rest of the
-// files are types that add fields to the instances if they match
-// Matching happens when an item has a type.
-//
-// Files that cannot be read are ignored. Use ReadTypedErr to get an
-// error instead.
+// Source is a row of a CSV file: the file, and the value of the row's name
+// field.
+type Source struct {
+	File string
+	Name string
+}
+
+// Field is a field of a typed item, with the rows its value comes from: one
+// row, or, for the accumulated fields tags and type, every row that added to
+// it, nearest first.
+type Field struct {
+	Value   string
+	Sources []Source
+}
+
+// Typed is the result of ReadTypedFields.
+type Typed struct {
+	// Items are the items of the first file, by name.
+	Items map[string]map[string]Field
+
+	// Warnings report type names that no row defines, and type cycles.
+	Warnings []string
+
+	warned map[string]bool
+}
+
+// accumulated reports whether a field collects the values of the whole type
+// chain instead of taking the nearest one.
+func accumulated(field string) bool {
+	return field == "tags" || field == "type"
+}
+
+// ReadTyped reads an instance file followed by type files (see the readme).
+// Files that cannot be read are ignored; use ReadTypedErr to get an error
+// instead.
 func ReadTyped(files []string) map[string]map[string]string {
 	m, _ := readTyped(files, false)
 	return m
@@ -23,149 +53,135 @@ func ReadTypedErr(files []string) (map[string]map[string]string, error) {
 }
 
 func readTyped(files []string, strict bool) (map[string]map[string]string, error) {
-
-	var aa [][]map[string]string
-	// var map[string]map[string]string
-
-	for _, file := range files {
-
-		// Read each file into a list of maps
-		// Each map (each line in the CSV file) is an item
-		// If an item has a 'type' field, that is used later to
-		// build the type inheritance
-		a, err := Read(file)
-		if err != nil && strict {
-			return nil, err
+	t, err := readTypedFields(files, strict)
+	if err != nil || len(t.Items) == 0 {
+		return nil, err
+	}
+	m := make(map[string]map[string]string, len(t.Items))
+	for name, fields := range t.Items {
+		r := make(map[string]string, len(fields))
+		for k, f := range fields {
+			r[k] = f.Value
 		}
-
-		if len(a) != 0 {
-			aa = append(aa, a)
-		}
+		m[name] = r
 	}
-
-	if len(aa) == 0 {
-		return nil, nil
-	}
-
-	// Before flattening we want to remember what are the (main) items,
-	// those that appear in the first file
-	items := make(map[string]bool)
-	for _, o := range aa[0] {
-		items[o["name"]] = true
-	}
-
-	// This returns all rows of all files in one list.
-	// If there where rows with the same name, data is merged (in order, that is
-	// data in lower rows has precedence over higher rows).
-	all := flatten(aa)
-
-	// For each item, do a recursive type augmentation
-
-	m := make(map[string]map[string]string)
-
-	for _, o := range *all {
-
-		name := o["name"]
-		if items[name] == false {
-			continue
-		}
-
-		typ := o["type"]
-
-		addTypeInfo(typ, o, all)
-		m[o["name"]] = o
-	}
-
 	return m, nil
 }
 
-// Flatten aa[1...]
-// Preserve aa[0]
-func flatten(aa [][]map[string]string) *[]map[string]string {
-
-	if len(aa) < 2 {
-		return &aa[0]
-	}
-
-	f1 := aa[len(aa)-1]
-
-	// Fields from lower indexes into aa take precedence
-	// So merge down
-	for i := len(aa) - 1; i > 0; i-- {
-		f0 := aa[i-1]
-
-		for _, row := range f0 {
-			name := row["name"]
-
-			// add to or merge into file0
-			found := false
-			for _, row1 := range f1 {
-				name1 := row1["name"]
-				if name == name1 {
-					found = true
-
-					for k, v := range row {
-						if k == "tags" {
-							row1[k] += " " + v
-						} else {
-							row1[k] = v
-						}
-					}
-
-					break
-				}
-			}
-			if !found {
-				f1 = append(f1, row)
-			}
-		}
-	}
-	return &f1
+// ReadTypedFields is ReadTypedErr, and also tells for every field of every
+// item which rows its value comes from.
+//
+// The first file holds the items; all files, the first included, can define
+// types. Rows with the same name, in the same or different files, are merged:
+// for each field the earlier row wins, and tags and type add up. An item gets
+// its own fields first, then those of its types that it does not have yet,
+// the types taken in the order its type field lists them, and each type
+// resolved the same way. So the nearest definition wins: an item over its
+// type, a type over the type it has itself.
+func ReadTypedFields(files []string) (*Typed, error) {
+	return readTypedFields(files, true)
 }
 
-func addTypeInfo(typ string, o map[string]string, tt *[]map[string]string) {
+func readTypedFields(files []string, strict bool) (*Typed, error) {
 
-	for _, t := range *tt {
-		name := t["name"]
-		if typ == name {
+	rows := map[string]map[string]Field{}
+	var items []string // names in the first file, in order
+	seen := map[string]bool{}
 
-			ttyp := t["type"]
-			if ttyp != "" {
-				addTypeInfo(ttyp, o, tt)
+	for i, file := range files {
+		a, err := Read(file)
+		if err != nil {
+			if strict {
+				return nil, err
 			}
-
-			for k, v := range t {
-				if k == "tags" || k == "type" {
-					o[k] += " " + v
-				} else if o[k] == "" {
-					o[k] = v
+			continue
+		}
+		for _, r := range a {
+			name := r["name"]
+			if name == "" {
+				continue
+			}
+			if i == 0 && !seen[name] {
+				seen[name] = true
+				items = append(items, name)
+			}
+			row := rows[name]
+			if row == nil {
+				row = map[string]Field{}
+				rows[name] = row
+			}
+			src := Source{File: file, Name: name}
+			for k, v := range r {
+				f, ok := row[k]
+				switch {
+				case !ok:
+					row[k] = Field{v, []Source{src}}
+				case accumulated(k):
+					row[k] = Field{join(f.Value, v), append(slices.Clone(f.Sources), src)}
 				}
 			}
 		}
 	}
+
+	t := &Typed{Items: map[string]map[string]Field{}, warned: map[string]bool{}}
+	for _, name := range items {
+		t.Items[name] = t.resolve(name, rows, nil)
+	}
+	return t, nil
 }
 
-func printlm(aa *[][]map[string]string) {
+// resolve returns the fields of row name: its own, then those of its types
+// that it does not have yet. path holds the rows being resolved, to stop
+// cycles.
+func (t *Typed) resolve(name string, rows map[string]map[string]Field, path []string) map[string]Field {
 
-	for i, file := range *aa {
-		fmt.Printf("file %d\n", i)
-		for j, row := range file {
-			fmt.Printf("  row %d\n", j)
-			for k, v := range row {
-				fmt.Printf("    %s = %s\n", k, v)
+	row := rows[name]
+	out := make(map[string]Field, len(row))
+	for k, f := range row {
+		out[k] = f
+	}
+
+	path = append(slices.Clone(path), name)
+	for _, typ := range strings.Fields(row["type"].Value) {
+		if slices.Contains(path, typ) {
+			t.warn("type cycle: %s → %s", strings.Join(path, " → "), typ)
+			continue
+		}
+		if rows[typ] == nil {
+			t.warn("%s: type %s is not defined", name, typ)
+			continue
+		}
+		for k, f := range t.resolve(typ, rows, path) {
+			if k == "name" {
+				continue
+			}
+			o, ok := out[k]
+			switch {
+			case !ok:
+				out[k] = f
+			case accumulated(k):
+				out[k] = Field{join(o.Value, f.Value), append(slices.Clone(o.Sources), f.Sources...)}
 			}
 		}
 	}
-	fmt.Println("------")
+	return out
 }
 
-func printll(aa *[]map[string]string) {
+func (t *Typed) warn(format string, a ...any) {
+	w := fmt.Sprintf(format, a...)
+	if !t.warned[w] {
+		t.warned[w] = true
+		t.Warnings = append(t.Warnings, w)
+	}
+}
 
-	for j, row := range *aa {
-		fmt.Printf("  row %d\n", j)
-		for k, v := range row {
-			fmt.Printf("    %s = %s\n", k, v)
+// join adds the words of b that a does not have yet.
+func join(a, b string) string {
+	words := strings.Fields(a)
+	for _, w := range strings.Fields(b) {
+		if !slices.Contains(words, w) {
+			words = append(words, w)
 		}
 	}
-	fmt.Println("------")
+	return strings.Join(words, " ")
 }

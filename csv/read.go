@@ -90,6 +90,11 @@ func Read(file string) ([]map[string]string, error) {
 		return nil, err
 	}
 
+	// An empty file, or one with only comments, has no rows
+	if len(data) == 0 {
+		return nil, nil
+	}
+
 	// The first line contains the field names or keys
 	keys := data[0]
 	for j := 0; j < len(keys); j++ {
@@ -143,6 +148,11 @@ func ReadString(in string) ([]map[string]string, error) {
 
 	if err := scanner.Err(); err != nil {
 		return nil, err
+	}
+
+	// An empty file, or one with only comments, has no rows
+	if len(data) == 0 {
+		return nil, nil
 	}
 
 	// The first line contains the field names or keys
