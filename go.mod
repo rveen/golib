@@ -8,7 +8,7 @@ require (
 	github.com/miekg/mmark v1.3.6
 	github.com/montanaflynn/stats v0.9.0
 	github.com/richardlehane/mscfb v1.0.7
-	github.com/rveen/ogdl v1.2.0
+	github.com/rveen/ogdl v1.4.0
 	golang.org/x/net v0.56.0
 	golang.org/x/text v0.39.0
 )

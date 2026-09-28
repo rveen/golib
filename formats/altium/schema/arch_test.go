@@ -13,7 +13,7 @@ import (
 
 func TestSchemaImports(t *testing.T) {
 	ctx := build.Default
-	pkg, err := ctx.Import("golib/formats/altium/schema", "", 0)
+	pkg, err := ctx.Import("github.com/rveen/golib/formats/altium/schema", "", 0)
 	if err != nil {
 		t.Fatalf("cannot import schema package: %v", err)
 	}

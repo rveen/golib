@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"golib/mathx"
+	"github.com/rveen/golib/mathx"
 )
 
 // Example usage
