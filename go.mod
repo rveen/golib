@@ -9,6 +9,7 @@ require (
 	github.com/montanaflynn/stats v0.9.0
 	github.com/richardlehane/mscfb v1.0.7
 	github.com/rveen/ogdl v1.4.0
+	github.com/tetratelabs/wazero v1.12.0
 	golang.org/x/net v0.56.0
 	golang.org/x/text v0.39.0
 )
@@ -20,4 +21,5 @@ require (
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/richardlehane/msoleps v1.0.3 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
 )
