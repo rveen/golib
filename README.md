@@ -1,4 +1,4 @@
 # golib
 Miscellaneous Go libraries
 
-- fs: access to files, including SVN repos.
+- fn: access to files, including SVN and Git repositories.
