@@ -25,8 +25,6 @@ github.com/richardlehane/mscfb v1.0.7 h1:oeoiM0WE79vHwE8RpIYYvIAc8ajTH2mb6UZm55/
 github.com/richardlehane/mscfb v1.0.7/go.mod h1:pe0+IUIc0AHh0+teNzBlJCtSyZdFOGgV4ZK9bsoV+Jo=
 github.com/richardlehane/msoleps v1.0.6 h1:9BvkpjvD+iUBalUY4esMwv6uBkfOip/Lzvd93jvR9gg=
 github.com/richardlehane/msoleps v1.0.6/go.mod h1:BWev5JBpU9Ko2WAgmZEuiz4/u3ZYTKbjLycmwiWUfWg=
-github.com/rveen/ogdl/v2 v2.1.0 h1:FZsNuPiKxi0UBAnPqpsfLF1RT7PqtTFfFF5a2oJGz+c=
-github.com/rveen/ogdl/v2 v2.1.0/go.mod h1:RI+l3mAYsKm5dUZ9teQDbEOJDfG5YwInNSFWrqaKp4A=
 github.com/rveen/ogdl/v2 v2.2.0 h1:QZ18E0lipvXrNgQUCCosKV5CLQninau3m5jnJghKMJw=
 github.com/rveen/ogdl/v2 v2.2.0/go.mod h1:RI+l3mAYsKm5dUZ9teQDbEOJDfG5YwInNSFWrqaKp4A=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
