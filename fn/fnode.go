@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/rveen/golib/document"
-	"github.com/rveen/ogdl"
+	"github.com/rveen/ogdl/v2"
 )
 
 type FNode struct {
@@ -15,7 +15,7 @@ type FNode struct {
 	Path     string
 	Revision string
 	Type     string
-	Data     *ogdl.Graph
+	Data     *ogdl.Node
 	Document *document.Document
 	Content  []byte
 	Params   map[string]string
@@ -55,7 +55,7 @@ func (fn *FNode) data() {
 
 	path := fn.remainingPathDot()
 	if path != "" {
-		fn.Data = fn.Data.Get(path)
+		fn.Data = fn.Data.Lookup(path)
 	}
 }
 
@@ -86,7 +86,7 @@ func (fn *FNode) document() error {
 	}
 
 	if data {
-		fn.Data = fn.Data.Get(path)
+		fn.Data = fn.Data.Lookup(path)
 	} else {
 		fn.Document = fn.Document.Part(path)
 	}

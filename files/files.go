@@ -4,11 +4,11 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/rveen/ogdl"
+	"github.com/rveen/ogdl/v2"
 )
 
 type Files struct {
-	Config *ogdl.Graph
+	Config *ogdl.Node
 	base   string
 }
 
@@ -16,7 +16,7 @@ func (f *Files) init() {
 	f.base, _ = f.Config.GetString("path")
 }
 
-func (f *Files) List(path string) *ogdl.Graph {
+func (f *Files) List(path string) *ogdl.Node {
 
 	log.Println("Files.List", path)
 	files, err := ioutil.ReadDir(path)

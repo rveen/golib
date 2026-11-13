@@ -7,7 +7,7 @@ require (
 	github.com/go-sql-driver/mysql v1.9.1
 	github.com/montanaflynn/stats v0.9.0
 	github.com/richardlehane/mscfb v1.0.7
-	github.com/rveen/ogdl v1.4.0
+	github.com/rveen/ogdl/v2 v2.1.0
 	github.com/tetratelabs/wazero v1.12.0
 	github.com/xuri/excelize/v2 v2.10.1
 	golang.org/x/text v0.39.0

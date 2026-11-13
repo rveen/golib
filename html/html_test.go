@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/rveen/ogdl"
+	"github.com/rveen/ogdl/v2"
 )
 
 func Test1(t *testing.T) {

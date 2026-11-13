@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rveen/ogdl"
+	"github.com/rveen/ogdl/v2"
 )
 
 // level
@@ -27,7 +27,7 @@ func (doc *Document) headerToHtml(sb *strings.Builder) {
 	sb.WriteString("<h" + h + " id=\"" + k + "\">" + text + "</h" + h + ">\n")
 }*/
 
-func headerToHtml(n *ogdl.Graph, sb *strings.Builder, hh *headers, urlbase string, numbered bool) {
+func headerToHtml(n *ogdl.Node, sb *strings.Builder, hh *headers, urlbase string, numbered bool) {
 
 	if n.Len() < 2 {
 		return
@@ -158,7 +158,7 @@ func (doc *Document) listToHtml(sb *strings.Builder, level int) {
 	sb.WriteString("</ul>\n")
 }
 
-func listToHtml(n *ogdl.Graph, sb *strings.Builder, ordered bool) {
+func listToHtml(n *ogdl.Node, sb *strings.Builder, ordered bool) {
 
 	if ordered {
 		sb.WriteString("<ol>\n")
@@ -306,7 +306,7 @@ func (doc *Document) tableToHtml(sb *strings.Builder) {
 	sb.WriteString("</table>\n")
 }
 
-func tableToHtml(n *ogdl.Graph, sb *strings.Builder) {
+func tableToHtml(n *ogdl.Node, sb *strings.Builder) {
 
 	hcol := false
 	hrow := false
@@ -391,7 +391,7 @@ func (doc *Document) textToHtml(sb *strings.Builder) {
 	sb.WriteString("</p>\n")
 }
 
-func textToHtml(n *ogdl.Graph, sb *strings.Builder) {
+func textToHtml(n *ogdl.Node, sb *strings.Builder) {
 
 	sb.WriteString("<p>")
 	for _, g := range n.Out {
@@ -400,7 +400,7 @@ func textToHtml(n *ogdl.Graph, sb *strings.Builder) {
 	sb.WriteString("</p>\n")
 }
 
-func textToHtmlQuote(n *ogdl.Graph, sb *strings.Builder) {
+func textToHtmlQuote(n *ogdl.Node, sb *strings.Builder) {
 
 	sb.WriteString("<p class='quote'>")
 	for _, g := range n.Out {
@@ -409,7 +409,7 @@ func textToHtmlQuote(n *ogdl.Graph, sb *strings.Builder) {
 	sb.WriteString("</p>\n")
 }
 
-func textToHtmlDefinition(n *ogdl.Graph, sb *strings.Builder) {
+func textToHtmlDefinition(n *ogdl.Node, sb *strings.Builder) {
 
 	sb.WriteString("<p class='definition'>")
 	for _, g := range n.Out {
@@ -418,7 +418,7 @@ func textToHtmlDefinition(n *ogdl.Graph, sb *strings.Builder) {
 	sb.WriteString("</p>\n")
 }
 
-func codeToHtml(n *ogdl.Graph, sb *strings.Builder) {
+func codeToHtml(n *ogdl.Node, sb *strings.Builder) {
 
 	// First node is class
 

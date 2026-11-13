@@ -6,7 +6,6 @@ import (
 
 	"github.com/rveen/golib/csv"
 	"github.com/rveen/golib/parser"
-	"github.com/rveen/ogdl"
 )
 
 var (
@@ -728,14 +727,14 @@ func paragraph(p *parser.Parser, head, pre string) {
 
 	for {
 		c, _ := p.Byte()
-		if ogdl.IsSpaceChar(c) && start {
+		if isSpaceChar(c) && start {
 
 		}
-		if ogdl.IsEndChar(c) {
+		if isEndChar(c) {
 			break
 		}
 
-		if ogdl.IsBreakChar(c) {
+		if isBreakChar(c) {
 			c, _ = p.Byte()
 			if isDocSpecial(rune(c)) {
 				p.UnreadByte()
@@ -751,7 +750,7 @@ func paragraph(p *parser.Parser, head, pre string) {
 			// the paragraph below -- a NUL byte in the rendered HTML.
 			// Invisible in a browser, and enough to make grep, diff and every
 			// other text tool call the page binary.
-			if ogdl.IsBreakChar(c) || ogdl.IsEndChar(c) {
+			if isBreakChar(c) || isEndChar(c) {
 				break
 			}
 			b = append(b, '\n')
@@ -805,45 +804,4 @@ func data(p *parser.Parser) {
 
 	p.Emit(sb.String())
 	p.Dec()
-}
-
-// TODO: put this into the ogdl package (change that package to parser.Parser)
-func ogdlFlow(p *ogdl.Parser) bool {
-
-	anything := false
-
-	lv := p.Handler().Level()
-
-	for {
-		if p.End() {
-			break
-		}
-
-		p.WhiteSpace()
-
-		c, _ := p.Byte()
-		if c == ')' {
-			break
-		}
-		if c == ',' {
-			p.Handler().SetLevel(lv)
-			continue
-		}
-		p.UnreadByte()
-
-		b, ok, _ := p.Quoted(0)
-		if !ok {
-			b, ok = p.StringStop([]byte("),"))
-		}
-
-		if ok {
-			p.Handler().Add(b)
-			anything = true
-			p.Handler().Inc()
-			continue
-		}
-	}
-
-	p.Handler().SetLevel(lv)
-	return anything
 }

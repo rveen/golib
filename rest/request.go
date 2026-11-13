@@ -8,7 +8,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/rveen/ogdl"
+	"github.com/rveen/ogdl/v2"
 )
 
 type Rest struct {
@@ -25,7 +25,7 @@ func New(user, passwd string) *Rest {
 }
 
 // Rest GET request
-func (rest *Rest) Get(url string) (*ogdl.Graph, error) {
+func (rest *Rest) Get(url string) (*ogdl.Node, error) {
 
 	body := []byte(`{}`)
 
@@ -65,7 +65,7 @@ func (rest *Rest) Get(url string) (*ogdl.Graph, error) {
 		return nil, err
 	}
 
-	g, err := ogdl.FromJSON(body)
+	g, err := fromJSON(body)
 
 	return g, err
 }
@@ -102,7 +102,7 @@ func (rest *Rest) Post(url, token string) error {
 		return err
 	}
 
-	g, err := ogdl.FromJSON(body)
+	g, err := fromJSON(body)
 
 	fmt.Println(g.Text())
 

@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/rveen/golib/id"
-	"github.com/rveen/ogdl"
+	"github.com/rveen/ogdl/v2"
 )
 
 // Create an empty FNode with the root set to the given system path.

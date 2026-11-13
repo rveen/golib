@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rveen/ogdl"
+	"github.com/rveen/ogdl/v2"
 )
 
 type Html struct{}
@@ -44,7 +44,7 @@ func (h Html) RepoBase(path, base string) string {
 	return path
 }
 
-func (h Html) Menu(g *ogdl.Graph, pre string) string {
+func (h Html) Menu(g *ogdl.Node, pre string) string {
 
 	var buf bytes.Buffer
 
@@ -152,7 +152,7 @@ func (h Html) Menu(g *ogdl.Graph, pre string) string {
 	</li> */
 }
 
-func submenu(g *ogdl.Graph, buf bytes.Buffer, pre string) {
+func submenu(g *ogdl.Node, buf bytes.Buffer, pre string) {
 
 	// Submenu init
 	// <li class="dropdown-submenu">

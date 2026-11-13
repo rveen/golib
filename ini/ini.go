@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rveen/ogdl"
+	"github.com/rveen/ogdl/v2"
 )
 
-func Load(file string) (*ogdl.Graph, error) {
+func Load(file string) (*ogdl.Node, error) {
 
 	f, err := os.Open(file)
 	if err != nil {

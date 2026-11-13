@@ -6,7 +6,7 @@
 // order to avoid a mutual dependency with ogdl.
 package eventhandler
 
-import "github.com/rveen/ogdl"
+import "github.com/rveen/ogdl/v2"
 
 // EventHandler receives events and produces a tree.
 type EventHandler struct {
@@ -82,10 +82,9 @@ func (e *EventHandler) Dec() {
 
 // Tree returns the Graph object built from
 // the events sent to this event handler.
-//
-func (e *EventHandler) Graph() *ogdl.Graph {
+func (e *EventHandler) Graph() *ogdl.Node {
 
-	g := make([]*ogdl.Graph, e.max+2)
+	g := make([]*ogdl.Node, e.max+2)
 	g[0] = ogdl.New(nil)
 
 	for i := 0; i < len(e.items); i++ {

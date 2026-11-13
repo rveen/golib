@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/rveen/golib/eventhandler"
-	"github.com/rveen/ogdl"
+	"github.com/rveen/ogdl/v2"
 )
 
 func (doc *Document) listToData(eh *eventhandler.EventHandler) {
@@ -64,7 +64,7 @@ func (doc *Document) headerToData(eh *eventhandler.EventHandler) {
 	}
 }
 
-func headerToPart(n *ogdl.Graph, eh *eventhandler.EventHandler, ix int) {
+func headerToPart(n *ogdl.Node, eh *eventhandler.EventHandler, ix int) {
 	if n.Len() < 3 {
 		return
 	}

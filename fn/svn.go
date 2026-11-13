@@ -9,8 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rveen/ogdl"
-	"github.com/rveen/ogdl/io/gxml"
+	"github.com/rveen/ogdl/v2"
 )
 
 func (fn *FNode) svnGet(path string) error {
@@ -200,8 +199,8 @@ func (fn *FNode) svnDir() error {
 		return err
 	}
 
-	g := gxml.FromXML(b)
-	g = g.Get("lists.list")
+	g := fromXML(b)
+	g = g.Lookup("lists.list")
 	dd := ogdl.New(nil)
 
 	path = fn.Path // save path, restore later in case of index.* or readme.*
@@ -270,7 +269,7 @@ func (fn *FNode) svnLog() error {
 		return err
 	}
 
-	g := gxml.FromXML(b)
+	g := fromXML(b)
 
 	if g == nil || g.Len() == 0 {
 		log.Println("svnLog error, g empty")
@@ -286,14 +285,14 @@ func (fn *FNode) svnLog() error {
 		rev := n.Node("@revision").String()
 
 		b, err = exec.Command("svn", "info", "--xml", "-r", rev, "file:///"+fn.Root+"/"+fn.Path).Output()
-		m := gxml.FromXML(b)
+		m := fromXML(b)
 
-		rel := m.Get("info.entry.relative_url'").String()
+		rel := m.Lookup("info.entry.relative_url'").String()
 		if len(rel) > 0 && rel[0] == '^' {
 			rel = rel[1:]
 		}
 		n.Set("urlRel", rel)
-		url := m.Get("info.entry.url").String()
+		url := m.Lookup("info.entry.url").String()
 		n.Set("url", url)
 		n.Set("urlBase", url[7:len(url)-len(rel)])
 	}
@@ -315,7 +314,7 @@ func (fn *FNode) svnLog() error {
 // 'svnlook info' on the other hand doesn't return info on paths, only on releases
 // 'svnlook meta' is a modification that gives info on paths as they are at the time
 // of the release. See https://github.com/rveen/subversion
-func (fn *FNode) svnInfo() (*ogdl.Graph, error) {
+func (fn *FNode) svnInfo() (*ogdl.Node, error) {
 
 	path := fn.Path
 	if path == "" {

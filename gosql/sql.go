@@ -8,7 +8,7 @@ import (
 	_ "github.com/denisenkom/go-mssqldb"
 	_ "github.com/go-sql-driver/mysql"
 
-	"github.com/rveen/ogdl"
+	"github.com/rveen/ogdl/v2"
 )
 
 type Db struct {
@@ -40,7 +40,7 @@ func (db *Db) Close() {
 	db.Db = nil
 }
 
-func (db *Db) Exec(g *ogdl.Graph) error {
+func (db *Db) Exec(g *ogdl.Node) error {
 
 	var err error
 
@@ -112,7 +112,7 @@ func (db *Db) Exec(g *ogdl.Graph) error {
 	return err
 }
 
-func (db *Db) Query(q string) *ogdl.Graph {
+func (db *Db) Query(q string) *ogdl.Node {
 
 	if db.Db == nil {
 		return nil
@@ -180,7 +180,7 @@ func (db *Db) Query(q string) *ogdl.Graph {
 }
 
 // Add column names to all results
-func (db *Db) Query2(q string) *ogdl.Graph {
+func (db *Db) Query2(q string) *ogdl.Node {
 
 	if db.Db == nil {
 		return nil
@@ -400,7 +400,7 @@ func (db *Db) Query1ToMap(q string) map[string]string {
 }
 
 // Return 1 result (the query should return 1 in the first place)
-func (db *Db) Query1(q string) *ogdl.Graph {
+func (db *Db) Query1(q string) *ogdl.Node {
 
 	rows, err := db.Db.Query(q)
 	if err != nil {

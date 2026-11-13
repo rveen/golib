@@ -11,15 +11,15 @@ import (
 
 	"github.com/rveen/golib/eventhandler"
 	"github.com/rveen/golib/parser"
-	"github.com/rveen/ogdl"
+	"github.com/rveen/ogdl/v2"
 )
 
 type Document struct {
 	stream  *eventhandler.EventHandler
-	g       *ogdl.Graph
-	parts   *ogdl.Graph
+	g       *ogdl.Node
+	parts   *ogdl.Node
 	ix      int
-	Context *ogdl.Graph // Context to solver variables
+	Context *ogdl.Node // Context to solver variables
 }
 
 // New parses a markdown+ text string and returnes a Document object.
@@ -86,7 +86,7 @@ func (doc *Document) html(flat bool) string {
 		case "!h":
 			if isNumbered(n.GetAt(1).ThisString()) {
 				numbered = true
-				n.Out[1].This = n.GetAt(1).ThisString()[3:]
+				n.Out[1].Data = n.GetAt(1).ThisString()[3:]
 			}
 			headerToHtml(n, &sb, hh, "", numbered)
 		case "!ul":
@@ -105,14 +105,13 @@ func (doc *Document) html(flat bool) string {
 	return sb.String()
 }
 
-func variable(v string, ctx *ogdl.Graph) string {
+func variable(v string, ctx *ogdl.Node) string {
 
 	if ctx == nil {
 		return ""
 	}
 
-	e := ogdl.NewExpression(v)
-	r, _ := ctx.Eval(e)
+	r, _ := ctx.EvalString(v)
 	return _string(r)
 }
 
@@ -126,7 +125,7 @@ func _string(i interface{}) string {
 	if v, ok := i.(string); ok {
 		return v
 	}
-	if v, ok := i.(*ogdl.Graph); ok {
+	if v, ok := i.(*ogdl.Node); ok {
 		return v.String()
 	}
 	return fmt.Sprint(i)
@@ -158,7 +157,7 @@ func (doc *Document) HtmlWithLinks(urlbase string) string {
 		case "!h":
 			if isNumbered(n.GetAt(1).ThisString()) {
 				numbered = true
-				n.Out[1].This = n.GetAt(1).ThisString()[3:]
+				n.Out[1].Data = n.GetAt(1).ThisString()[3:]
 			}
 			headerToHtml(n, &sb, hh, urlbase, numbered)
 		case "!ul":
@@ -234,13 +233,13 @@ func (doc *Document) Part(path string) *Document {
 		doc.parts = eh.Graph()
 	}
 
-	part := doc.parts.Get(path)
+	part := doc.parts.Lookup(path)
 	if part == nil || part.Len() == 0 {
 		return &Document{}
 	}
 
-	start := int(part.Get("_start").Int64())
-	level := int(part.Get("_level").Int64())
+	start := int(part.Lookup("_start").Int64())
+	level := int(part.Lookup("_level").Int64())
 	end := doc.g.Len()
 
 	// End is next header with same 'level'
@@ -264,7 +263,7 @@ func (doc *Document) Part(path string) *Document {
 }
 
 // Data returns the Document as OGDL data
-func (doc *Document) Data() *ogdl.Graph {
+func (doc *Document) Data() *ogdl.Node {
 
 	eh := eventhandler.New()
 	doc.ix = 0
@@ -292,7 +291,7 @@ func (doc *Document) Data() *ogdl.Graph {
 }
 
 // Structure returns (only) the headers as OGDL data
-func (doc *Document) Structure() *ogdl.Graph {
+func (doc *Document) Structure() *ogdl.Node {
 
 	eh := eventhandler.New()
 	doc.ix = 0
@@ -325,13 +324,13 @@ func (doc *Document) CompareStructure(ref *Document) (bool, string) {
 	return _compare(d, dr, "")
 }
 
-func _compare(d, dr *ogdl.Graph, s string) (bool, string) {
+func _compare(d, dr *ogdl.Node, s string) (bool, string) {
 
 	r := true
 	// Check that at this level all headers in dr are in d
 	for _, h := range dr.Out {
 		hs := h.ThisString()
-		hr := d.Get(hs)
+		hr := d.Lookup(hs)
 		if hr == nil {
 			s += hs + " not found\n"
 			r = false
@@ -343,7 +342,7 @@ func _compare(d, dr *ogdl.Graph, s string) (bool, string) {
 	return r, s
 }
 
-func (doc *Document) Raw() *ogdl.Graph {
+func (doc *Document) Raw() *ogdl.Node {
 	return doc.g
 }
 

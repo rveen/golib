@@ -6,7 +6,7 @@
 // order to avoid a mutual dependency with ogdl.
 package eventhandler
 
-import "github.com/rveen/ogdl"
+import "github.com/rveen/ogdl/v2"
 
 // EventHandler2 receives events and produces a tree.
 // TODO benchmark agains the pure string version. Keep this one if difference is small
@@ -83,10 +83,9 @@ func (e *EventHandler2) Dec() {
 
 // Tree returns the Graph object built from
 // the events sent to this event handler.
-//
-func (e *EventHandler2) Graph() *ogdl.Graph {
+func (e *EventHandler2) Graph() *ogdl.Node {
 
-	g := make([]*ogdl.Graph, e.max+2)
+	g := make([]*ogdl.Node, e.max+2)
 	g[0] = ogdl.New(nil)
 
 	for i := 0; i < len(e.items); i++ {

@@ -5,17 +5,17 @@
 package parser
 
 import (
-	"github.com/rveen/ogdl"
+	"github.com/rveen/ogdl/v2"
 )
 
 // Ast reorganizes the expression graph in the form of an abstract syntax tree.
 
-func Ast(g *ogdl.Graph) {
+func Ast(g *ogdl.Node) {
 	ast(g)
 	clean(g)
 }
 
-func clean(g *ogdl.Graph) {
+func clean(g *ogdl.Node) {
 	if g == nil {
 		return
 	}
@@ -30,7 +30,7 @@ func clean(g *ogdl.Graph) {
 	}
 }
 
-func ast(g *ogdl.Graph) {
+func ast(g *ogdl.Node) {
 
 	if g == nil {
 		return
@@ -44,7 +44,7 @@ func ast(g *ogdl.Graph) {
 		return
 	}
 
-	var e1, e2 *ogdl.Graph
+	var e1, e2 *ogdl.Node
 
 	for j := 5; j >= 0; j-- {
 

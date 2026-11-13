@@ -9,7 +9,7 @@ import (
 	_ "github.com/denisenkom/go-mssqldb"
 	_ "github.com/go-sql-driver/mysql"
 
-	"github.com/rveen/ogdl"
+	"github.com/rveen/ogdl/v2"
 )
 
 type Db struct {
@@ -23,7 +23,7 @@ type Db1 struct {
 	Db     *sql.DB
 }
 
-func New(cfg *ogdl.Graph) *Db {
+func New(cfg *ogdl.Node) *Db {
 
 	var dbs Db
 	dbs.dbs = make(map[string]*Db1)
@@ -44,7 +44,7 @@ func New(cfg *ogdl.Graph) *Db {
 }
 
 // Single db
-func NewDb(d *ogdl.Graph) *Db {
+func NewDb(d *ogdl.Node) *Db {
 	if d == nil {
 		return nil
 	}
@@ -89,7 +89,7 @@ func (db *Db) ExecSql(name, q string) (sql.Result, error) {
 	return db1.Db.Exec(q)
 }
 
-func (db *Db) Exec(name string, g *ogdl.Graph) error {
+func (db *Db) Exec(name string, g *ogdl.Node) error {
 
 	db1 := db.dbs[name]
 	if db1 == nil {
@@ -170,7 +170,7 @@ func (db *Db) Exec(name string, g *ogdl.Graph) error {
 	return err
 }
 
-func (db *Db) Query(name, q string) *ogdl.Graph {
+func (db *Db) Query(name, q string) *ogdl.Node {
 
 	log.Printf("Query %s: %s\n", name, q)
 
@@ -249,7 +249,7 @@ func (db *Db) Query(name, q string) *ogdl.Graph {
 }
 
 // Add column names to all results
-func (db *Db) Query2(name, q string) *ogdl.Graph {
+func (db *Db) Query2(name, q string) *ogdl.Node {
 
 	db1 := db.dbs[name]
 	if db1 == nil {
@@ -442,7 +442,7 @@ func (db *Db) Query1ToMap(name, q string) map[string]string {
 }
 
 // Return 1 result (the query should return 1 in the first place)
-func (db *Db) Query1(name, q string) *ogdl.Graph {
+func (db *Db) Query1(name, q string) *ogdl.Node {
 
 	db1 := db.dbs[name]
 	if db1 == nil {
