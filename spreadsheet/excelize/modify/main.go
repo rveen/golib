@@ -1,7 +1,7 @@
 package main
 
 import (
-	ss "golib/spreadsheet"
+	ss "github.com/rveen/golib/spreadsheet"
 	"os"
 	"path"
 )
